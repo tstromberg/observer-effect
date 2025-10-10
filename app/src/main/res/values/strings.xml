@@ -6,9 +6,24 @@
     <string name="motion_detection">Motion Detection</string>
     <string name="light_detection">Light Detection</string>
     <string name="sensitivity">Sensitivity</string>
+    <string name="rear_camera">Rear Camera</string>
+    <string name="front_camera">Front Camera</string>
     <string name="disabled">Disabled</string>
     <string name="not_detected">Not detected</string>
     <string name="permission_required">Camera permission required for motion detection</string>
     <string name="channel_name">Detection Service</string>
     <string name="channel_description">Foreground service for motion and light detection</string>
+    <string name="camera_rear">Rear</string>
+    <string name="camera_front">Front</string>
+    <string name="camera_external">External</string>
+    <string name="camera_suffix">Camera</string>
+    <string name="camera_suffix_plural">Cameras</string>
+    <string name="camera_separator"> + </string>
+    <string name="light_sensor_format">Light Sensor (%d lux max)</string>
+    <string name="level_format" formatted="false">Level: %d / Threshold: %d</string>
+    <string name="camera_selection">Camera Selection</string>
+    <string name="camera_none">None (Disabled)</string>
+    <string name="camera_rear_option">Rear Camera</string>
+    <string name="camera_front_option">Front Camera</string>
+    <string name="start_at_boot">Start at boot</string>
 </resources>

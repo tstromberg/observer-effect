@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material Design 3 Dark Theme Colors -->
+    <color name="primary">#7986CB</color>
+    <color name="primary_dark">#5C6BC0</color>
+    <color name="accent">#7C4DFF</color>
+    <color name="accent_dark">#651FFF</color>
+
+    <color name="background">#121212</color>
+    <color name="surface">#1E1E1E</color>
+
+    <color name="on_primary">#000000</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="on_background">#E0E0E0</color>
+    <color name="on_surface">#E0E0E0</color>
+</resources>

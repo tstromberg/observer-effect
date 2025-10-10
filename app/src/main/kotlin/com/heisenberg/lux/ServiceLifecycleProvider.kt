@@ -12,7 +12,9 @@ class ServiceLifecycleProvider : LifecycleOwner {
     }
 
     fun onStart() {
+        // FIX: Proper lifecycle state transitions
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
+        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
     }
 
     fun onDestroy() {

@@ -11,7 +11,8 @@ import kotlin.math.abs
 class LightDetector(
     private val context: Context,
     private var sensitivity: Int,
-    private val onLightChangeDetected: () -> Unit
+    private val onLightChangeDetected: () -> Unit,
+    private val onLevelUpdate: (Float, Float) -> Unit = { _, _ -> }
 ) : SensorEventListener {
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
@@ -39,20 +40,37 @@ class LightDetector(
     override fun onSensorChanged(event: SensorEvent) {
         val currentLux = event.values[0]
 
-        if (previousLux != null) {
-            val change = abs(currentLux - previousLux!!)
-            // Higher sensitivity = lower threshold (inverted scale)
-            // sensitivity 100 = 1 lux threshold, sensitivity 1 = 100 lux threshold
-            val threshold = (101 - sensitivity).toFloat()
+        previousLux?.let { prevLux ->
+            val change = abs(currentLux - prevLux)
+
+            // Simple linear curve: Real-world light changes are typically 0-10 lux indoors
+            // sensitivity 0 = disabled, sensitivity 1 = 10 lux, sensitivity 100 = 0.1 lux
+            val threshold = if (sensitivity == 0) {
+                Float.MAX_VALUE  // Disabled
+            } else {
+                // Linear: 10.1 - (sensitivity * 0.1) = range from 10.0 to 0.1
+                (10.1f - (sensitivity * 0.1f)).coerceAtLeast(0.1f)
+            }
+
+            // Broadcast current level
+            onLevelUpdate(change, threshold)
 
             if (change > threshold) {
                 val now = System.currentTimeMillis()
                 if (now - lastDetectionTime > DETECTION_COOLDOWN_MS) {
-                    Log.d(TAG, "Light change detected: ${previousLux}→$currentLux lux (Δ$change, threshold=$threshold)")
+                    Log.d(TAG, "Light change detected: $prevLux→$currentLux lux (Δ$change, threshold=$threshold)")
                     lastDetectionTime = now
                     onLightChangeDetected()
                 }
             }
+        } ?: run {
+            // First reading - broadcast current level with zero change
+            val threshold = if (sensitivity == 0) {
+                Float.MAX_VALUE
+            } else {
+                (10.1f - (sensitivity * 0.1f)).coerceAtLeast(0.1f)
+            }
+            onLevelUpdate(0f, threshold)
         }
 
         previousLux = currentLux

@@ -10,6 +10,7 @@ import android.content.SharedPreferences
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import androidx.camera.core.CameraSelector
 import androidx.lifecycle.LifecycleOwner
 
 class DetectionService : Service(), LifecycleOwner {
@@ -18,12 +19,14 @@ class DetectionService : Service(), LifecycleOwner {
         get() = serviceLifecycleProvider.lifecycle
     private lateinit var prefs: SharedPreferences
     private lateinit var wakeLock: PowerManager.WakeLock
-    private var motionDetector: MotionDetector? = null
+    private var cameraDetector: MotionDetector? = null
     private var lightDetector: LightDetector? = null
 
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            MainActivity.KEY_MOTION_SENSITIVITY, MainActivity.KEY_LIGHT_SENSITIVITY -> {
+            MainActivity.KEY_CAMERA_SELECTION,
+            MainActivity.KEY_CAMERA_SENSITIVITY,
+            MainActivity.KEY_LIGHT_SENSITIVITY -> {
                 updateDetectors()
             }
         }
@@ -58,7 +61,7 @@ class DetectionService : Service(), LifecycleOwner {
         serviceLifecycleProvider.onDestroy()
         Log.i(TAG, "Service destroyed")
         prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
-        motionDetector?.stop()
+        cameraDetector?.stop()
         lightDetector?.stop()
         if (wakeLock.isHeld) {
             wakeLock.release()
@@ -68,26 +71,51 @@ class DetectionService : Service(), LifecycleOwner {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun updateDetectors() {
-        val motionSensitivity = prefs.getInt(MainActivity.KEY_MOTION_SENSITIVITY, 0)
+        val cameraSelection = prefs.getInt(MainActivity.KEY_CAMERA_SELECTION, MainActivity.CAMERA_NONE)
+        val cameraSensitivity = prefs.getInt(MainActivity.KEY_CAMERA_SENSITIVITY, 50)
         val lightSensitivity = prefs.getInt(MainActivity.KEY_LIGHT_SENSITIVITY, 0)
 
-        // Update motion detection
-        if (motionSensitivity > 0) {
-            if (motionDetector == null) {
-                motionDetector = MotionDetector(this, motionSensitivity) { wakeScreen() }
-                motionDetector?.start()
-            } else {
-                motionDetector?.updateSensitivity(motionSensitivity)
+        // Update camera detection based on selection
+        when (cameraSelection) {
+            MainActivity.CAMERA_REAR, MainActivity.CAMERA_FRONT -> {
+                val cameraSelector = if (cameraSelection == MainActivity.CAMERA_REAR) {
+                    CameraSelector.DEFAULT_BACK_CAMERA
+                } else {
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                }
+
+                if (cameraDetector == null) {
+                    cameraDetector = MotionDetector(
+                        this,
+                        cameraSensitivity,
+                        cameraSelector,
+                        onMotionDetected = { wakeScreen() },
+                        onLevelUpdate = { level, threshold ->
+                            broadcastSensorUpdate(SENSOR_CAMERA, level.toFloat(), threshold.toFloat())
+                        }
+                    )
+                    cameraDetector?.start()
+                } else {
+                    cameraDetector?.updateSensitivity(cameraSensitivity)
+                }
             }
-        } else {
-            motionDetector?.stop()
-            motionDetector = null
+            MainActivity.CAMERA_NONE -> {
+                cameraDetector?.stop()
+                cameraDetector = null
+            }
         }
 
         // Update light detection
         if (lightSensitivity > 0) {
             if (lightDetector == null) {
-                lightDetector = LightDetector(this, lightSensitivity) { wakeScreen() }
+                lightDetector = LightDetector(
+                    this,
+                    lightSensitivity,
+                    onLightChangeDetected = { wakeScreen() },
+                    onLevelUpdate = { level, threshold ->
+                        broadcastSensorUpdate(SENSOR_LIGHT, level, threshold)
+                    }
+                )
                 lightDetector?.start()
             } else {
                 lightDetector?.updateSensitivity(lightSensitivity)
@@ -97,22 +125,34 @@ class DetectionService : Service(), LifecycleOwner {
             lightDetector = null
         }
 
-        // Stop service if both disabled
-        if (motionSensitivity == 0 && lightSensitivity == 0) {
+        // Stop service if all disabled
+        if (cameraSelection == MainActivity.CAMERA_NONE && lightSensitivity == 0) {
             stopSelf()
         }
     }
 
     private fun wakeScreen() {
         try {
+            // CRITICAL FIX: Use acquire with timeout, don't release immediately
+            // The timeout will auto-release after WAKE_DURATION_MS
             if (!wakeLock.isHeld) {
                 Log.i(TAG, "Waking screen")
                 wakeLock.acquire(WAKE_DURATION_MS)
-                wakeLock.release()
+                // Don't call release() - the timeout handles it automatically
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error waking screen", e)
         }
+    }
+
+    private fun broadcastSensorUpdate(sensorType: String, currentLevel: Float, threshold: Float) {
+        val intent = Intent(ACTION_SENSOR_UPDATE).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_SENSOR_TYPE, sensorType)
+            putExtra(EXTRA_CURRENT_LEVEL, currentLevel)
+            putExtra(EXTRA_THRESHOLD, threshold)
+        }
+        sendBroadcast(intent)
     }
 
     private fun createNotificationChannel() {
@@ -140,5 +180,11 @@ class DetectionService : Service(), LifecycleOwner {
         private const val CHANNEL_ID = "detection_service"
         private const val NOTIFICATION_ID = 1
         private const val WAKE_DURATION_MS = 100L
+        const val ACTION_SENSOR_UPDATE = "com.heisenberg.lux.SENSOR_UPDATE"
+        const val EXTRA_SENSOR_TYPE = "sensor_type"
+        const val EXTRA_CURRENT_LEVEL = "current_level"
+        const val EXTRA_THRESHOLD = "threshold"
+        const val SENSOR_CAMERA = "camera"
+        const val SENSOR_LIGHT = "light"
     }
 }
