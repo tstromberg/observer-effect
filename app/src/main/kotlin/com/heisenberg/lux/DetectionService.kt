@@ -10,8 +10,12 @@ import android.content.SharedPreferences
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import androidx.lifecycle.LifecycleOwner
 
-class DetectionService : Service() {
+class DetectionService : Service(), LifecycleOwner {
+    private val serviceLifecycleProvider = ServiceLifecycleProvider()
+    override val lifecycle
+        get() = serviceLifecycleProvider.lifecycle
     private lateinit var prefs: SharedPreferences
     private lateinit var wakeLock: PowerManager.WakeLock
     private var motionDetector: MotionDetector? = null
@@ -27,6 +31,7 @@ class DetectionService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        serviceLifecycleProvider.onStart()
         Log.i(TAG, "Service created")
 
         prefs = getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE)
@@ -50,6 +55,7 @@ class DetectionService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceLifecycleProvider.onDestroy()
         Log.i(TAG, "Service destroyed")
         prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
         motionDetector?.stop()
