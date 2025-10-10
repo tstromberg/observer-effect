@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Heisenberg\'s Lux</string>
+    <string name="service_notification_title">Heisenberg\'s Lux</string>
+    <string name="service_notification_text">Monitoring motion and light</string>
+    <string name="motion_detection">Motion Detection</string>
+    <string name="light_detection">Light Detection</string>
+    <string name="sensitivity">Sensitivity</string>
+    <string name="disabled">Disabled</string>
+    <string name="not_detected">Not detected</string>
+    <string name="permission_required">Camera permission required for motion detection</string>
+    <string name="channel_name">Detection Service</string>
+    <string name="channel_description">Foreground service for motion and light detection</string>
+</resources>
