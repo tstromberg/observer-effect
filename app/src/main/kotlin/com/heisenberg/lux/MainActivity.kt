@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         // Load saved values (default to front camera if this is first run)
         val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, getDefaultCamera())
         val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 50)
-        val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
+        val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 50)
         val startAtBoot = prefs.getBoolean(KEY_START_AT_BOOT, false)
 
         with(binding) {
@@ -79,7 +79,9 @@ class MainActivity : AppCompatActivity() {
 
             // Setup camera sensitivity
             cameraSeekBar?.progress = cameraSensitivity
-            cameraValue?.text = calculateCameraThreshold(cameraSensitivity).toString()
+            val cameraThreshold = calculateCameraThreshold(cameraSensitivity)
+            val cameraThresholdPercent = ((cameraThreshold / CAMERA_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+            cameraValue?.text = if (cameraSensitivity == 0) getString(R.string.disabled_caps) else "$cameraThresholdPercent%"
 
             // Show/hide sensitivity controls based on camera selection
             updateCameraSensitivityVisibility(cameraSelection)
@@ -101,10 +103,16 @@ class MainActivity : AppCompatActivity() {
 
             cameraSeekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    cameraValue?.text = calculateCameraThreshold(progress).toString()
+                    val threshold = calculateCameraThreshold(progress)
+                    val thresholdPercent = ((threshold / CAMERA_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+                    cameraValue?.text = if (progress == 0) getString(R.string.disabled_caps) else "$thresholdPercent%"
                     // Update sensitivity in real-time as user slides
                     if (fromUser) {
                         prefs.edit().putInt(KEY_CAMERA_SENSITIVITY, progress).apply()
+                        // Clear live reading when disabled
+                        if (progress == 0) {
+                            binding.cameraLiveReading?.text = ""
+                        }
                         // Restart service immediately to update threshold display
                         updateService()
                     }
@@ -119,11 +127,15 @@ class MainActivity : AppCompatActivity() {
 
             // Setup light sensor
             lightSeekBar?.progress = lightSensitivity
-            lightValue?.text = if (lightSensitivity == 0) getString(R.string.disabled_caps) else "%.1f".format(calculateLightThreshold(lightSensitivity))
+            val lightThreshold = calculateLightThreshold(lightSensitivity)
+            val lightThresholdPercent = ((lightThreshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+            lightValue?.text = if (lightSensitivity == 0) getString(R.string.disabled_caps) else "$lightThresholdPercent%"
 
             lightSeekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    binding.lightValue.text = if (progress == 0) getString(R.string.disabled_caps) else "%.1f".format(calculateLightThreshold(progress))
+                    val threshold = calculateLightThreshold(progress)
+                    val thresholdPercent = ((threshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+                    binding.lightValue.text = if (progress == 0) getString(R.string.disabled_caps) else "$thresholdPercent%"
                     // Update sensitivity in real-time as user slides
                     if (fromUser) {
                         prefs.edit().putInt(KEY_LIGHT_SENSITIVITY, progress).apply()
@@ -184,6 +196,7 @@ class MainActivity : AppCompatActivity() {
         val visible = cameraSelection != CAMERA_NONE
         binding.cameraSensitivityLabel?.visibility = if (visible) View.VISIBLE else View.GONE
         binding.cameraSensitivityContainer?.visibility = if (visible) View.VISIBLE else View.GONE
+        binding.cameraLiveReading?.visibility = if (visible) View.VISIBLE else View.GONE
     }
 
     private fun getDefaultCamera(): Int {
@@ -247,9 +260,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateService() {
         val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, CAMERA_NONE)
+        val cameraEnabled = cameraSelection != CAMERA_NONE && prefs.getInt(KEY_CAMERA_SENSITIVITY, 50) > 0
         val lightEnabled = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0) > 0
 
-        if (cameraSelection != CAMERA_NONE || lightEnabled) {
+        if (cameraEnabled || lightEnabled) {
             val serviceIntent = Intent(this, DetectionService::class.java)
             ContextCompat.startForegroundService(this, serviceIntent)
         } else {
@@ -260,21 +274,37 @@ class MainActivity : AppCompatActivity() {
     private fun updateLiveReading(sensorType: String, currentLevel: Float, threshold: Float) {
         val exceeds = currentLevel > threshold
         val emoji = if (exceeds) "\uD83D\uDCA1" else "\uD83D\uDCA4"
-        // Format with 1 decimal place for better precision
-        val text = "$emoji Detected Level: %.1f".format(currentLevel)
 
         when (sensorType) {
             DetectionService.SENSOR_CAMERA -> {
                 isCameraActive = exceeds
-                binding.cameraLiveReading?.text = text
-                // Also update the slider value display with threshold
-                binding.cameraValue?.text = "%.0f".format(threshold)
+                val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 50)
+                if (cameraSensitivity == 0) {
+                    // Don't update display when disabled
+                    binding.cameraValue?.text = getString(R.string.disabled_caps)
+                } else {
+                    // Convert camera level to percentage (0-200 -> 0-100%)
+                    val levelPercent = ((currentLevel / CAMERA_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+                    val thresholdPercent = ((threshold / CAMERA_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+                    binding.cameraLiveReading?.text = "$emoji Current activity level: $levelPercent%"
+                    // Also update the slider value display with threshold
+                    binding.cameraValue?.text = "$thresholdPercent%"
+                }
             }
             DetectionService.SENSOR_LIGHT -> {
                 isLightActive = exceeds
-                binding.lightLiveReading?.text = text
-                // Also update the slider value display with threshold
-                binding.lightValue?.text = "%.1f".format(threshold)
+                val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 50)
+                if (lightSensitivity == 0) {
+                    // Don't update display when disabled
+                    binding.lightValue?.text = getString(R.string.disabled_caps)
+                } else {
+                    // Convert light level to percentage (0-5 lux -> 0-100%)
+                    val levelPercent = ((currentLevel / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+                    val thresholdPercent = ((threshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+                    binding.lightLiveReading?.text = "$emoji Current activity level: $levelPercent%"
+                    // Also update the slider value display with threshold
+                    binding.lightValue?.text = "$thresholdPercent%"
+                }
             }
         }
 
@@ -288,13 +318,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun calculateCameraThreshold(sensitivity: Int): Long {
-        return when {
-            sensitivity >= 100 -> 1L
-            else -> {
-                // Exponential curve: 200 * (0.005)^((sensitivity-1)/99)
-                val normalizedSens = (sensitivity - 1) / 99.0
-                (200.0 * Math.pow(0.005, normalizedSens)).toLong()
-            }
+        return if (sensitivity == 0) {
+            Long.MAX_VALUE  // Disabled
+        } else {
+            // Linear mapping: sensitivity 1 = threshold 1 (most sensitive), sensitivity 100 = threshold 200 (least sensitive)
+            // Formula: sensitivity * 2 - 1
+            ((sensitivity * 2L) - 1L).coerceIn(1L, 200L)
         }
     }
 
@@ -302,8 +331,9 @@ class MainActivity : AppCompatActivity() {
         return if (sensitivity == 0) {
             Float.MAX_VALUE
         } else {
-            // Linear: 10.1 - (sensitivity * 0.1) = range from 10.0 to 0.1
-            (10.1f - (sensitivity * 0.1f)).coerceAtLeast(0.1f)
+            // Linear: sensitivity 1 = 0.05 lux (most sensitive), sensitivity 100 = 5.0 lux (least sensitive)
+            // Formula: sensitivity * 0.05
+            (sensitivity * 0.05f).coerceIn(0.05f, 5f)
         }
     }
 
@@ -318,5 +348,9 @@ class MainActivity : AppCompatActivity() {
         const val CAMERA_NONE = 0
         const val CAMERA_REAR = 1
         const val CAMERA_FRONT = 2
+
+        // Maximum values for percentage calculation
+        private const val CAMERA_MAX_LEVEL = 200f  // Camera threshold max is 200
+        private const val LIGHT_MAX_LEVEL = 5f     // Light sensor max observed ~4.6 lux, using 5 for headroom
     }
 }

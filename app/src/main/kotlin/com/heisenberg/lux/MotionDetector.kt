@@ -129,13 +129,12 @@ class MotionDetector(
             buffer.get(data)
 
             // Calculate threshold once per frame
-            val threshold = when {
-                sensitivity >= 100 -> 1L
-                else -> {
-                    // Exponential curve: 200 * (0.005)^((sensitivity-1)/99)
-                    val normalizedSens = (sensitivity - 1) / 99.0
-                    (200.0 * Math.pow(0.005, normalizedSens)).toLong()
-                }
+            val threshold = if (sensitivity == 0) {
+                Long.MAX_VALUE  // Disabled
+            } else {
+                // Linear mapping: sensitivity 1 = threshold 1 (most sensitive), sensitivity 100 = threshold 200 (least sensitive)
+                // Formula: sensitivity * 2 - 1
+                ((sensitivity * 2L) - 1L).coerceIn(1L, 200L)
             }
 
             previousFrame?.let { prevFrame ->

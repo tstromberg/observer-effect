@@ -10,7 +10,7 @@ A minimalist Android app that wakes your device screen when motion or ambient li
 
 - **Motion Detection**: Uses device camera to detect motion
 - **Light Detection**: Uses ambient light sensor to detect changes in lighting
-- **Configurable Sensitivity**: Adjust detection thresholds from 0-100 (0 = disabled)
+- **Configurable Sensitivity**: Adjust minimum activity thresholds from 0-100% (0 = disabled, 1% = most sensitive, 100% = least sensitive)
 - **Foreground Service**: Runs continuously in the background
 - **Minimal Dependencies**: Simple, elegant, and efficient
 

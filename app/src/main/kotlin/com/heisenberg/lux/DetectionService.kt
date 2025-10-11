@@ -148,65 +148,56 @@ class DetectionService : Service(), LifecycleOwner {
         val lightSensitivity = prefs.getInt(MainActivity.KEY_LIGHT_SENSITIVITY, 0)
 
         // Update camera detection based on selection
-        when (cameraSelection) {
-            MainActivity.CAMERA_REAR, MainActivity.CAMERA_FRONT -> {
-                val cameraSelector = if (cameraSelection == MainActivity.CAMERA_REAR) {
-                    CameraSelector.DEFAULT_BACK_CAMERA
-                } else {
-                    CameraSelector.DEFAULT_FRONT_CAMERA
-                }
-
-                val currentDetector = cameraDetector
-                if (currentDetector == null) {
-                    // Create new detector if none exists
-                    Log.d(TAG, "Creating new camera detector (selection=$cameraSelection)")
-                    cameraDetector = MotionDetector(
-                        this,
-                        cameraSensitivity,
-                        cameraSelector,
-                        onMotionDetected = { wakeScreen() },
-                        onLevelUpdate = { level, threshold ->
-                            broadcastSensorUpdate(SENSOR_CAMERA, level.toFloat(), threshold.toFloat())
-                        }
-                    )
-                    cameraDetector?.start()
-                    currentCameraSelection = cameraSelection
-                } else if (currentCameraSelection != cameraSelection) {
-                    // Camera selection changed - stop old detector and create new one
-                    Log.d(TAG, "Camera selection changed from $currentCameraSelection to $cameraSelection, recreating detector")
-                    currentDetector.stop()
-                    cameraDetector = MotionDetector(
-                        this,
-                        cameraSensitivity,
-                        cameraSelector,
-                        onMotionDetected = { wakeScreen() },
-                        onLevelUpdate = { level, threshold ->
-                            broadcastSensorUpdate(SENSOR_CAMERA, level.toFloat(), threshold.toFloat())
-                        }
-                    )
-                    cameraDetector?.start()
-                    currentCameraSelection = cameraSelection
-                } else {
-                    // Same camera, just update sensitivity
-                    Log.d(TAG, "Updating camera sensitivity to $cameraSensitivity")
-                    currentDetector.updateSensitivity(cameraSensitivity)
-                }
+        if (cameraSelection == MainActivity.CAMERA_NONE || cameraSensitivity == 0) {
+            // Stop camera detector if disabled
+            cameraDetector?.let {
+                Log.d(TAG, "Stopping camera detector")
+                it.stop()
+                cameraDetector = null
             }
-            MainActivity.CAMERA_NONE -> {
-                if (cameraDetector != null) {
-                    Log.d(TAG, "Stopping camera detector")
-                    cameraDetector?.stop()
-                    cameraDetector = null
-                }
-                currentCameraSelection = MainActivity.CAMERA_NONE
+            currentCameraSelection = MainActivity.CAMERA_NONE
+        } else {
+            // Camera is enabled - create or update detector
+            val cameraSelector = if (cameraSelection == MainActivity.CAMERA_REAR) {
+                CameraSelector.DEFAULT_BACK_CAMERA
+            } else {
+                CameraSelector.DEFAULT_FRONT_CAMERA
+            }
+
+            if (cameraDetector == null || currentCameraSelection != cameraSelection) {
+                // Create new detector (or recreate if camera changed)
+                cameraDetector?.stop()
+                Log.d(TAG, "Creating camera detector (selection=$cameraSelection, sensitivity=$cameraSensitivity)")
+                cameraDetector = MotionDetector(
+                    this,
+                    cameraSensitivity,
+                    cameraSelector,
+                    onMotionDetected = { wakeScreen() },
+                    onLevelUpdate = { level, threshold ->
+                        broadcastSensorUpdate(SENSOR_CAMERA, level.toFloat(), threshold.toFloat())
+                    }
+                )
+                cameraDetector?.start()
+                currentCameraSelection = cameraSelection
+            } else {
+                // Same camera, just update sensitivity
+                Log.d(TAG, "Updating camera sensitivity to $cameraSensitivity")
+                cameraDetector?.updateSensitivity(cameraSensitivity)
             }
         }
 
         // Update light detection
-        if (lightSensitivity > 0) {
-            val currentLightDetector = lightDetector
-            if (currentLightDetector == null) {
-                Log.d(TAG, "Creating new light detector (sensitivity=$lightSensitivity)")
+        if (lightSensitivity == 0) {
+            // Stop light detector if disabled
+            lightDetector?.let {
+                Log.d(TAG, "Stopping light detector")
+                it.stop()
+                lightDetector = null
+            }
+        } else {
+            // Light is enabled - create or update detector
+            if (lightDetector == null) {
+                Log.d(TAG, "Creating light detector (sensitivity=$lightSensitivity)")
                 lightDetector = LightDetector(
                     this,
                     lightSensitivity,
@@ -218,18 +209,14 @@ class DetectionService : Service(), LifecycleOwner {
                 lightDetector?.start()
             } else {
                 Log.d(TAG, "Updating light sensitivity to $lightSensitivity")
-                currentLightDetector.updateSensitivity(lightSensitivity)
-            }
-        } else {
-            if (lightDetector != null) {
-                Log.d(TAG, "Stopping light detector")
-                lightDetector?.stop()
-                lightDetector = null
+                lightDetector?.updateSensitivity(lightSensitivity)
             }
         }
 
         // Stop service if all disabled
-        if (cameraSelection == MainActivity.CAMERA_NONE && lightSensitivity == 0) {
+        val cameraEnabled = cameraSelection != MainActivity.CAMERA_NONE && cameraSensitivity > 0
+        val lightEnabled = lightSensitivity > 0
+        if (!cameraEnabled && !lightEnabled) {
             stopSelf()
         }
     }

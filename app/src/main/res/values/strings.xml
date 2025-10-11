@@ -6,7 +6,7 @@
     <string name="app_subtitle">Enables the display when motion is detected</string>
     <string name="motion_detection">Camera Sensor</string>
     <string name="light_detection">Ambient Light Sensor</string>
-    <string name="sensitivity">Sensitivity</string>
+    <string name="sensitivity">Minimum activity level</string>
     <string name="disabled_caps">DISABLED</string>
     <string name="rear_camera">Rear Camera</string>
     <string name="front_camera">Front Camera</string>
