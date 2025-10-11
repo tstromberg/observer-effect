@@ -1,12 +1,12 @@
 # The Observer Effect
 
-I wanted my wall-mounted home automation tablets to light up as I walked by. This app wakes the screen when it detects motion or light changes, and can optionally launch any app you want.
+**Auto-unlock and auto-open when movement is detected.**
 
-Works great for Home Assistant dashboards, Alarmo alarm panels, or any app you want to see when you approach a mounted tablet. No more tapping the screen to wake it.
+Turn your wall-mounted tablet into a smart display that automatically wakes up and launches your dashboard when you walk by. Uses camera motion detection and ambient light sensors to detect your presence.
 
-Similar concept to [Yakk](https://yakk.bkappz.com/), but open-source and with more sensors (camera + light) and the ability to auto-unlock and launch apps.
+Perfect for Home Assistant dashboards, alarm panels, calendars, or any app you want instant access to. No more tapping the screen—just walk up and it's ready.
 
-The name refers to the observer effect in physics, where the act of observation changes what is being observed—in this case, your approach to the tablet causes it to wake up.
+Similar concept to [Yakk](https://yakk.bkappz.com/), but open-source with more sensors and different customization options.
 
 ## Screenshots
 

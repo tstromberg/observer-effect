@@ -4,7 +4,7 @@
     <string name="app_title">The Observer Effect</string>
     <string name="service_notification_title">The Observer Effect</string>
     <string name="service_notification_text">Monitoring for motion</string>
-    <string name="app_subtitle">Observing the system changes it</string>
+    <string name="app_subtitle">Auto-unlock + auto-open upon motion detection</string>
     <string name="motion_detection">Camera Sensor</string>
     <string name="light_detection">Ambient Light Sensor</string>
     <string name="sensitivity">Minimum activity level</string>
@@ -34,6 +34,8 @@
     <string name="launch_app_none">None</string>
     <string name="notification_sound">Notification sound</string>
     <string name="notification_sound_none">None</string>
+    <string name="disable_battery_optimization">Disable battery optimization</string>
+    <string name="battery_optimization_disabled">Battery optimization already disabled</string>
     <string name="sensor_not_available">N/A</string>
     <string name="sensor_not_available_message">This device does not have an ambient light sensor</string>
 </resources>

@@ -1,4 +1,4 @@
-package com.heisenberg.lux
+package com.observer.effect
 
 import android.app.KeyguardManager
 import android.content.Context

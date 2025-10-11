@@ -1,4 +1,4 @@
-package com.heisenberg.lux
+package com.observer.effect
 
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner

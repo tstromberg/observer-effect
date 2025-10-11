@@ -1,4 +1,4 @@
-package com.heisenberg.lux
+package com.observer.effect
 
 import android.app.KeyguardManager
 import android.app.Notification
@@ -318,9 +318,9 @@ class DetectionService : Service(), LifecycleOwner {
         private const val CHANNEL_ID = "detection_service"
         private const val NOTIFICATION_ID = 1
         private const val WAKE_DURATION_MS = 100L
-        const val ACTION_SENSOR_UPDATE = "com.heisenberg.lux.SENSOR_UPDATE"
-        const val ACTION_ACTIVITY_FOREGROUND = "com.heisenberg.lux.ACTIVITY_FOREGROUND"
-        const val ACTION_ACTIVITY_BACKGROUND = "com.heisenberg.lux.ACTIVITY_BACKGROUND"
+        const val ACTION_SENSOR_UPDATE = "com.observer.effect.SENSOR_UPDATE"
+        const val ACTION_ACTIVITY_FOREGROUND = "com.observer.effect.ACTIVITY_FOREGROUND"
+        const val ACTION_ACTIVITY_BACKGROUND = "com.observer.effect.ACTIVITY_BACKGROUND"
         const val EXTRA_SENSOR_TYPE = "sensor_type"
         const val EXTRA_CURRENT_LEVEL = "current_level"
         const val EXTRA_THRESHOLD = "threshold"

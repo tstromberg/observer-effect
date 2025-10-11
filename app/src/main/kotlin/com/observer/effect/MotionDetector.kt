@@ -1,4 +1,4 @@
-package com.heisenberg.lux
+package com.observer.effect
 
 import android.Manifest
 import android.content.Context

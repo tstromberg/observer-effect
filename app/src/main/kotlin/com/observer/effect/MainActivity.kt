@@ -1,4 +1,4 @@
-package com.heisenberg.lux
+package com.observer.effect
 
 import android.Manifest
 import android.content.BroadcastReceiver
@@ -22,7 +22,7 @@ import android.widget.SeekBar
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.heisenberg.lux.databinding.ActivityMainBinding
+import com.observer.effect.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -282,6 +282,21 @@ class MainActivity : AppCompatActivity() {
         // Request camera permission if needed
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+
+        // Request battery optimization exemption for reliable background operation
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                try {
+                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    intent.data = android.net.Uri.parse("package:$packageName")
+                    startActivity(intent)
+                    Log.i(TAG, "Requesting battery optimization exemption")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error requesting battery optimization exemption", e)
+                }
+            }
         }
 
         // Register broadcast receiver for sensor updates
