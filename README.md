@@ -2,9 +2,9 @@
 
 **Auto-unlock and auto-open when movement is detected.**
 
-Configures your Android device to automatically unlock and optionally open an application when it detects your presence using the camera and ambient light sensors. While initially designed for an Android-based home security system, it's also perfect for Home Assistant, Calendars, and Public Transit schedules. No more tapping the screen—just walk up and it's ready.
+Configures your Android device to automatically unlock and optionally open an application when it detects your presence using the camera and ambient light sensors. 
 
-This app is similar in concept to [Yakk](https://yakk.bkappz.com/), but I didn't know it existed when I started writing this tool. In comparison, TOE is open-source, with support for more sensors and different customization options. TOE does not record video or store data other than your configuration data. TOE does not require any network access.
+While initially designed for an Android-based home security system, it's also perfect for Home Assistant, Calendars, and Public Transit schedules. No more tapping the screen—just walk up and it's ready. This app is similar in concept to [Yakk](https://yakk.bkappz.com/), but I didn't know it existed when I started hacking on this. In comparison, TOE is open-source, with support for more sensors and different customization options. TOE does not record video or store data other than your configuration data. TOE does not require any network access.
 
 ## Screenshots
 
