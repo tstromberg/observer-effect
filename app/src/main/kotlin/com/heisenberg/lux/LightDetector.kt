@@ -24,7 +24,9 @@ class LightDetector(
             Log.w(TAG, "Light sensor not available")
             return
         }
-        sensorManager.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_NORMAL)
+        // Use SENSOR_DELAY_UI for good responsiveness without excessive CPU usage
+        // UI delay is ~60ms between updates, which is plenty fast for motion detection
+        sensorManager.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_UI)
         Log.i(TAG, "Light sensor monitoring started")
     }
 

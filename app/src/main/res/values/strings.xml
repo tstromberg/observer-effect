@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Heisenberg\'s Lux</string>
+    <string name="app_name">Heisenberg\'s Lux💡</string>
     <string name="service_notification_title">Heisenberg\'s Lux</string>
-    <string name="service_notification_text">Monitoring motion and light</string>
-    <string name="motion_detection">Motion Detection</string>
-    <string name="light_detection">Light Detection</string>
+    <string name="service_notification_text">Monitoring for motion</string>
+    <string name="app_subtitle">Enables the display when motion is detected</string>
+    <string name="motion_detection">Camera Sensor</string>
+    <string name="light_detection">Ambient Light Sensor</string>
     <string name="sensitivity">Sensitivity</string>
+    <string name="disabled_caps">DISABLED</string>
     <string name="rear_camera">Rear Camera</string>
     <string name="front_camera">Front Camera</string>
     <string name="disabled">Disabled</string>
     <string name="not_detected">Not detected</string>
-    <string name="permission_required">Camera permission required for motion detection</string>
-    <string name="channel_name">Detection Service</string>
-    <string name="channel_description">Foreground service for motion and light detection</string>
+    <string name="permission_required">Camera permission required for camera motion detection</string>
+    <string name="channel_name">Motion Detection Service</string>
+    <string name="channel_description">Foreground service for camera and light motion detection</string>
     <string name="camera_rear">Rear</string>
     <string name="camera_front">Front</string>
     <string name="camera_external">External</string>

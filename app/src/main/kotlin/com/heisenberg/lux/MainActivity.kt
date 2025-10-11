@@ -58,8 +58,8 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
-        // Load saved values
-        val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, CAMERA_NONE)
+        // Load saved values (default to front camera if this is first run)
+        val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, getDefaultCamera())
         val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 50)
         val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
         val startAtBoot = prefs.getBoolean(KEY_START_AT_BOOT, false)
@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
 
             // Setup camera sensitivity
             cameraSeekBar?.progress = cameraSensitivity
-            cameraValue?.text = cameraSensitivity.toString()
+            cameraValue?.text = calculateCameraThreshold(cameraSensitivity).toString()
 
             // Show/hide sensitivity controls based on camera selection
             updateCameraSensitivityVisibility(cameraSelection)
@@ -88,6 +88,10 @@ class MainActivity : AppCompatActivity() {
                     prefs.edit().putInt(KEY_CAMERA_SELECTION, position).apply()
                     Log.i(TAG, "Camera selection changed to $position")
                     updateCameraSensitivityVisibility(position)
+                    // Clear live reading when camera is disabled
+                    if (position == CAMERA_NONE) {
+                        binding.cameraLiveReading?.text = ""
+                    }
                     updateService()
                 }
 
@@ -96,35 +100,46 @@ class MainActivity : AppCompatActivity() {
 
             cameraSeekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    cameraValue?.text = progress.toString()
+                    cameraValue?.text = calculateCameraThreshold(progress).toString()
+                    // Update sensitivity in real-time as user slides
+                    if (fromUser) {
+                        prefs.edit().putInt(KEY_CAMERA_SENSITIVITY, progress).apply()
+                        // Restart service immediately to update threshold display
+                        updateService()
+                    }
                 }
 
                 override fun onStartTrackingTouch(seekBar: SeekBar?) {}
 
                 override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                    val progress = seekBar?.progress ?: 50
-                    prefs.edit().putInt(KEY_CAMERA_SENSITIVITY, progress).apply()
-                    Log.i(TAG, "Camera sensitivity set to $progress")
-                    updateService()
+                    Log.i(TAG, "Camera sensitivity finalized at ${seekBar?.progress}")
                 }
             })
 
             // Setup light sensor
             lightSeekBar?.progress = lightSensitivity
-            lightValue?.text = if (lightSensitivity == 0) getString(R.string.disabled) else lightSensitivity.toString()
+            lightValue?.text = if (lightSensitivity == 0) getString(R.string.disabled_caps) else "%.1f".format(calculateLightThreshold(lightSensitivity))
 
             lightSeekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    binding.lightValue?.text = if (progress == 0) getString(R.string.disabled) else progress.toString()
+                    binding.lightValue?.text = if (progress == 0) getString(R.string.disabled_caps) else "%.1f".format(calculateLightThreshold(progress))
+                    // Update sensitivity in real-time as user slides
+                    if (fromUser) {
+                        prefs.edit().putInt(KEY_LIGHT_SENSITIVITY, progress).apply()
+                        // Clear live reading when disabled
+                        if (progress == 0) {
+                            binding.lightLiveReading?.text = ""
+                        }
+                        // Restart service immediately to update threshold display
+                        updateService()
+                    }
                 }
 
                 override fun onStartTrackingTouch(seekBar: SeekBar?) {}
 
                 override fun onStopTrackingTouch(seekBar: SeekBar?) {
                     val progress = seekBar?.progress ?: 0
-                    prefs.edit().putInt(KEY_LIGHT_SENSITIVITY, progress).apply()
-                    Log.i(TAG, "Light sensitivity set to $progress")
-                    updateService()
+                    Log.i(TAG, "Light sensitivity finalized at $progress")
                 }
             })
 
@@ -137,7 +152,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         updateCameraInfo()
-        updateLightSensorInfo()
+        updateLightSensorVisibility()
         requestCameraPermissionIfNeeded()
 
         // Register broadcast receiver for sensor updates
@@ -164,6 +179,33 @@ class MainActivity : AppCompatActivity() {
         binding.cameraSensitivityContainer?.visibility = if (visible) View.VISIBLE else View.GONE
     }
 
+    private fun getDefaultCamera(): Int {
+        // Default to front camera if available, otherwise rear, otherwise none
+        val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        return try {
+            val cameraIds = cameraManager.cameraIdList
+            var hasFront = false
+            var hasRear = false
+
+            for (cameraId in cameraIds) {
+                val characteristics = cameraManager.getCameraCharacteristics(cameraId)
+                when (characteristics.get(CameraCharacteristics.LENS_FACING)) {
+                    CameraCharacteristics.LENS_FACING_FRONT -> hasFront = true
+                    CameraCharacteristics.LENS_FACING_BACK -> hasRear = true
+                }
+            }
+
+            when {
+                hasFront -> CAMERA_FRONT
+                hasRear -> CAMERA_REAR
+                else -> CAMERA_NONE
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error detecting default camera", e)
+            CAMERA_NONE
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         if (isReceiverRegistered) {
@@ -184,50 +226,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateCameraInfo() {
-        val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        try {
-            val cameraIds = cameraManager.cameraIdList
-            if (cameraIds.isEmpty()) {
-                binding.cameraInfo.text = getString(R.string.not_detected)
-                return
-            }
-
-            val cameras = mutableListOf<String>()
-            for (cameraId in cameraIds) {
-                val characteristics = cameraManager.getCameraCharacteristics(cameraId)
-                val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
-                when (facing) {
-                    CameraCharacteristics.LENS_FACING_BACK -> cameras.add(getString(R.string.camera_rear))
-                    CameraCharacteristics.LENS_FACING_FRONT -> cameras.add(getString(R.string.camera_front))
-                    CameraCharacteristics.LENS_FACING_EXTERNAL -> cameras.add(getString(R.string.camera_external))
-                }
-            }
-
-            binding.cameraInfo.text = if (cameras.isNotEmpty()) {
-                val separator = getString(R.string.camera_separator)
-                val suffix = if (cameras.size > 1) {
-                    getString(R.string.camera_suffix_plural)
-                } else {
-                    getString(R.string.camera_suffix)
-                }
-                cameras.joinToString(separator) + " " + suffix
-            } else {
-                getString(R.string.not_detected)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading camera info", e)
-            binding.cameraInfo.text = getString(R.string.not_detected)
-        }
+        // Camera info is no longer displayed, but we keep this method
+        // in case we need to add camera detection logic in the future
     }
 
-    private fun updateLightSensorInfo() {
+    private fun updateLightSensorVisibility() {
         val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
-        binding.lightSensorInfo.text = if (lightSensor != null) {
-            getString(R.string.light_sensor_format, lightSensor.maximumRange.toInt())
-        } else {
-            getString(R.string.not_detected)
-        }
+
+        // Hide the entire light sensor card if no sensor is detected
+        binding.lightCard.visibility = if (lightSensor != null) View.VISIBLE else View.GONE
     }
 
     private fun updateService() {
@@ -245,11 +253,40 @@ class MainActivity : AppCompatActivity() {
     private fun updateLiveReading(sensorType: String, currentLevel: Float, threshold: Float) {
         val exceeds = currentLevel > threshold
         val emoji = if (exceeds) "\uD83D\uDCA1" else "\uD83D\uDCA4"
-        val text = "$emoji ${getString(R.string.level_format, currentLevel.toInt(), threshold.toInt())}"
+        // Format with 1 decimal place for better precision
+        val text = "$emoji Detected Level: %.1f".format(currentLevel)
 
         when (sensorType) {
-            DetectionService.SENSOR_CAMERA -> binding.cameraLiveReading?.text = text
-            DetectionService.SENSOR_LIGHT -> binding.lightLiveReading?.text = text
+            DetectionService.SENSOR_CAMERA -> {
+                binding.cameraLiveReading?.text = text
+                // Also update the slider value display with threshold
+                binding.cameraValue?.text = "%.0f".format(threshold)
+            }
+            DetectionService.SENSOR_LIGHT -> {
+                binding.lightLiveReading?.text = text
+                // Also update the slider value display with threshold
+                binding.lightValue?.text = "%.1f".format(threshold)
+            }
+        }
+    }
+
+    private fun calculateCameraThreshold(sensitivity: Int): Long {
+        return when {
+            sensitivity >= 100 -> 1L
+            else -> {
+                // Exponential curve: 200 * (0.005)^((sensitivity-1)/99)
+                val normalizedSens = (sensitivity - 1) / 99.0
+                (200.0 * Math.pow(0.005, normalizedSens)).toLong()
+            }
+        }
+    }
+
+    private fun calculateLightThreshold(sensitivity: Int): Float {
+        return if (sensitivity == 0) {
+            Float.MAX_VALUE
+        } else {
+            // Linear: 10.1 - (sensitivity * 0.1) = range from 10.0 to 0.1
+            (10.1f - (sensitivity * 0.1f)).coerceAtLeast(0.1f)
         }
     }
 
