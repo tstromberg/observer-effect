@@ -23,19 +23,21 @@ Similar concept to [Yakk](https://yakk.bkappz.com/), but open-source with more s
 - Camera motion detection with adjustable sensitivity
 - Ambient light sensor for detecting lighting changes
 - Auto-unlock screen and launch your dashboard app
+- Automatic keyguard dismissal (works with swipe-to-unlock and no security)
+- Configurable notification sound on wake
 - Start at boot for set-and-forget operation
-- Material Design 3 with dark mode and tablet layouts
+- Clean, simple UI with tablet layouts
 - Full accessibility support with TalkBack
 
-## Setup Recommendations
+## Permissions
 
-**For best results, disable your device's lock screen security:**
+On first launch, the app will request the following permissions:
 
-Go to **Settings → Security → Screen Lock** and set it to **"None"** or **"Swipe"**.
+- **Camera** - For motion detection
+- **Display over other apps** (SYSTEM_ALERT_WINDOW) - Required to reliably launch apps from background on Android 10+
+- **Battery optimization exemption** - For reliable background operation
 
-**Why?** Android's security model prevents apps from bypassing PIN, pattern, or biometric authentication. If you have secure lock screen enabled, the app will wake the screen but you'll still need to authenticate manually. For wall-mounted tablets that don't leave your home, disabling the lock screen provides the smoothest experience.
-
-If you need security, consider using Smart Lock (Settings → Security → Smart Lock) with trusted locations or devices instead.
+These permissions are essential for the app to function properly.
 
 ## Building
 

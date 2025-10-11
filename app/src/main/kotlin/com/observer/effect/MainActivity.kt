@@ -284,8 +284,23 @@ class MainActivity : AppCompatActivity() {
             requestPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
-        // Request battery optimization exemption for reliable background operation
+        // Request SYSTEM_ALERT_WINDOW permission for reliable app launching from background
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!android.provider.Settings.canDrawOverlays(this)) {
+                try {
+                    val intent =
+                        Intent(
+                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            android.net.Uri.parse("package:$packageName"),
+                        )
+                    startActivity(intent)
+                    Log.i(TAG, "Requesting overlay permission for background activity launch")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error requesting overlay permission", e)
+                }
+            }
+
+            // Request battery optimization exemption for reliable background operation
             val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
             if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
                 try {

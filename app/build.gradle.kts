@@ -12,15 +12,16 @@ android {
         applicationId = "com.observer.effect"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.7.2"
+        versionCode = 10
+        versionName = "0.7.3"
     }
 
     signingConfigs {
         create("release") {
             // Use keystore from environment variable or default locations
-            val keystorePath = System.getenv("ANDROID_KEYSTORE")
-                ?: "${System.getProperty("user.home")}/android.jks"
+            val keystorePath =
+                System.getenv("ANDROID_KEYSTORE")
+                    ?: "${System.getProperty("user.home")}/android.jks"
             val keystoreFile = file(keystorePath)
 
             if (keystoreFile.exists()) {

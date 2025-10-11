@@ -1,6 +1,5 @@
 package com.observer.effect
 
-import android.app.ActivityManager
 import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -11,7 +10,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
-import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
@@ -266,52 +264,74 @@ class DetectionService : Service(), LifecycleOwner {
         try {
             // Don't auto-open if screen is already on (user is actively using device)
             if (powerManager.isInteractive) {
-                Log.d(TAG, "Screen already on, skipping auto-open")
+                Log.d(TAG, "Screen already on, skipping wake operation")
                 return
             }
 
+            // Check if wake lock is already held to prevent double-wake
+            if (wakeLock.isHeld) {
+                Log.d(TAG, "Wake lock already held, skipping duplicate wake operation")
+                return
+            }
+
+            Log.i(TAG, "Motion/light detected - initiating screen wake sequence")
+
             // CRITICAL FIX: Use acquire with timeout, don't release immediately
             // The timeout will auto-release after WAKE_DURATION_MS
-            if (!wakeLock.isHeld) {
-                Log.i(TAG, "Waking screen")
-                wakeLock.acquire(WAKE_DURATION_MS)
-                // Don't call release() - the timeout handles it automatically
+            wakeLock.acquire(WAKE_DURATION_MS)
+            Log.d(TAG, "Wake lock acquired for ${WAKE_DURATION_MS}ms")
 
-                // Play notification sound if configured
-                val notificationSoundUri = prefs.getString(MainActivity.KEY_NOTIFICATION_SOUND, "") ?: ""
-                if (notificationSoundUri.isNotEmpty()) {
-                    try {
-                        val ringtone = android.media.RingtoneManager.getRingtone(this, android.net.Uri.parse(notificationSoundUri))
-                        ringtone?.play()
-                        Log.i(TAG, "Playing notification sound: $notificationSoundUri")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error playing notification sound", e)
+            // Play notification sound if configured
+            val notificationSoundUri = prefs.getString(MainActivity.KEY_NOTIFICATION_SOUND, "") ?: ""
+            if (notificationSoundUri.isNotEmpty()) {
+                try {
+                    Log.d(TAG, "Playing notification sound")
+                    val ringtone = android.media.RingtoneManager.getRingtone(this, android.net.Uri.parse(notificationSoundUri))
+                    if (ringtone != null) {
+                        ringtone.play()
+                        Log.i(TAG, "Notification sound started: $notificationSoundUri")
+                    } else {
+                        Log.w(TAG, "Ringtone object is null for URI: $notificationSoundUri")
                     }
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Security exception playing notification sound - missing permissions?", e)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error playing notification sound: $notificationSoundUri", e)
                 }
-
-                // Launch app if configured
-                val launchApp = prefs.getString(MainActivity.KEY_LAUNCH_APP, "") ?: ""
-                if (launchApp.isNotEmpty()) {
-                    try {
-                        Log.i(TAG, "Bringing app to foreground: $launchApp (locked=${keyguardManager.isKeyguardLocked})")
-
-                        val launchIntent = packageManager.getLaunchIntentForPackage(launchApp)
-                        if (launchIntent != null) {
-                            // Use CLEAR_TASK + NEW_TASK to forcefully bring the app to foreground
-                            // This clears the existing task and creates a fresh one on top
-                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                            startActivity(launchIntent)
-                            Log.i(TAG, "Launched app with CLEAR_TASK flags=${launchIntent.flags}")
-                        } else {
-                            Log.w(TAG, "No launch intent found for package: $launchApp")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error launching app: $launchApp", e)
-                    }
-                }
+            } else {
+                Log.d(TAG, "No notification sound configured")
             }
+
+            // Launch app if configured
+            val launchApp = prefs.getString(MainActivity.KEY_LAUNCH_APP, "") ?: ""
+            if (launchApp.isNotEmpty()) {
+                try {
+                    Log.i(
+                        TAG,
+                        "Initiating app launch: package=$launchApp, keyguardLocked=${keyguardManager.isKeyguardLocked}",
+                    )
+
+                    // Use our transparent LauncherActivity to properly dismiss keyguard
+                    // and then launch the target app
+                    val launcherIntent =
+                        Intent(this, LauncherActivity::class.java).apply {
+                            putExtra(LauncherActivity.EXTRA_TARGET_PACKAGE, launchApp)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    startActivity(launcherIntent)
+                    Log.i(TAG, "LauncherActivity started successfully")
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Security exception starting LauncherActivity - missing permissions?", e)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error starting LauncherActivity for app: $launchApp", e)
+                }
+            } else {
+                Log.d(TAG, "No launch app configured")
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception during screen wake - missing WAKE_LOCK permission?", e)
         } catch (e: Exception) {
-            Log.e(TAG, "Error waking screen", e)
+            Log.e(TAG, "Unexpected error during screen wake sequence", e)
         }
     }
 
