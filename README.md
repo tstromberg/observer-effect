@@ -2,9 +2,9 @@
 
 **Auto-unlock and auto-open when movement is detected.**
 
-Configures a wall-mounted tablet into a smart display that automatically wakes up and launches your favorite app when you walk by using camera motion detection and ambient light sensors for presence detection. Perfect for Home Assistant dashboards, alarm panels, calendars, tram schedules, or any app you want instant access to. No more tapping the screen—just walk up and it's ready.
+Configures your Android device to automatically unlock and optionally open an application when it detects your presence using the camera and ambient light sensors. While initially designed for an Android-based home security system, it's also perfect for Home Assistant, Calendars, and Public Transit schedules. No more tapping the screen—just walk up and it's ready.
 
-This app is similar in concept to [Yakk](https://yakk.bkappz.com/), but I didn't know it existed at first. In comparison, this tool is open-source, with more sensors and different customization options. YMMV.
+This app is similar in concept to [Yakk](https://yakk.bkappz.com/), but I didn't know it existed when I started writing this tool. In comparison, TOE is open-source, with support for more sensors and different customization options. TOE does not record video or store data other than your configuration data. TOE does not require any network access.
 
 ## Screenshots
 
