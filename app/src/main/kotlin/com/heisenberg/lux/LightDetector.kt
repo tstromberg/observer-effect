@@ -18,6 +18,8 @@ class LightDetector(
     private val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
     private var previousLux: Float? = null
     private var lastDetectionTime = 0L
+    private var isPaused = false
+    private var isListening = false
 
     fun start() {
         if (lightSensor == null) {
@@ -27,12 +29,33 @@ class LightDetector(
         // Use SENSOR_DELAY_UI for good responsiveness without excessive CPU usage
         // UI delay is ~60ms between updates, which is plenty fast for motion detection
         sensorManager.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_UI)
+        isListening = true
         Log.i(TAG, "Light sensor monitoring started")
     }
 
     fun stop() {
         sensorManager.unregisterListener(this)
         previousLux = null
+        isListening = false
+        isPaused = false
+    }
+
+    fun pause() {
+        if (!isPaused && isListening) {
+            isPaused = true
+            sensorManager.unregisterListener(this)
+            isListening = false
+            Log.i(TAG, "Light sensor detection paused")
+        }
+    }
+
+    fun resume() {
+        if (isPaused && !isListening && lightSensor != null) {
+            isPaused = false
+            sensorManager.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_UI)
+            isListening = true
+            Log.i(TAG, "Light sensor detection resumed")
+        }
     }
 
     fun updateSensitivity(newSensitivity: Int) {

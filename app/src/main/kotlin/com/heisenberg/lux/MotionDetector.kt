@@ -28,6 +28,7 @@ class MotionDetector(
     private var previousFrame: ByteArray? = null
     private var lastDetectionTime = 0L
     private var isInitialFrame = true
+    private var isPaused = false
 
     fun start() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
@@ -58,9 +59,26 @@ class MotionDetector(
         imageAnalysis = null
         previousFrame = null
         isInitialFrame = true
+        isPaused = false
         // CRITICAL FIX: Shutdown executor to prevent thread leak
         executor?.shutdown()
         executor = null
+    }
+
+    fun pause() {
+        if (!isPaused) {
+            isPaused = true
+            cameraProvider?.unbindAll()
+            Log.i(TAG, "Camera detection paused")
+        }
+    }
+
+    fun resume() {
+        if (isPaused) {
+            isPaused = false
+            bindCamera()
+            Log.i(TAG, "Camera detection resumed")
+        }
     }
 
     fun updateSensitivity(newSensitivity: Int) {

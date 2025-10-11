@@ -4,8 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.IBinder
 import android.os.PowerManager
@@ -19,8 +21,10 @@ class DetectionService : Service(), LifecycleOwner {
         get() = serviceLifecycleProvider.lifecycle
     private lateinit var prefs: SharedPreferences
     private lateinit var wakeLock: PowerManager.WakeLock
+    private lateinit var powerManager: PowerManager
     private var cameraDetector: MotionDetector? = null
     private var lightDetector: LightDetector? = null
+    private var isScreenOffReceiverRegistered = false
 
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
@@ -28,6 +32,21 @@ class DetectionService : Service(), LifecycleOwner {
             MainActivity.KEY_CAMERA_SENSITIVITY,
             MainActivity.KEY_LIGHT_SENSITIVITY -> {
                 updateDetectors()
+            }
+        }
+    }
+
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    Log.i(TAG, "Screen turned off, resuming detection")
+                    resumeDetection()
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    Log.i(TAG, "Screen turned on, pausing detection")
+                    pauseDetection()
+                }
             }
         }
     }
@@ -40,18 +59,45 @@ class DetectionService : Service(), LifecycleOwner {
         prefs = getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE)
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
 
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
             "HeisenbergLux::WakeLock"
         )
 
+        // Register screen on/off receiver
+        val screenFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        registerReceiver(screenOffReceiver, screenFilter)
+        isScreenOffReceiverRegistered = true
+
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
         updateDetectors()
+
+        // Pause detection initially if screen is on
+        if (powerManager.isInteractive) {
+            Log.i(TAG, "Screen is on at service start, pausing detection")
+            pauseDetection()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_ACTIVITY_FOREGROUND -> {
+                Log.i(TAG, "MainActivity in foreground, resuming detection")
+                resumeDetection()
+            }
+            ACTION_ACTIVITY_BACKGROUND -> {
+                Log.i(TAG, "MainActivity in background")
+                // Check if screen is on and pause if needed
+                if (powerManager.isInteractive) {
+                    pauseDetection()
+                }
+            }
+        }
         Log.i(TAG, "Service started")
         return START_STICKY
     }
@@ -61,6 +107,16 @@ class DetectionService : Service(), LifecycleOwner {
         serviceLifecycleProvider.onDestroy()
         Log.i(TAG, "Service destroyed")
         prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
+
+        if (isScreenOffReceiverRegistered) {
+            try {
+                unregisterReceiver(screenOffReceiver)
+                isScreenOffReceiverRegistered = false
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "Screen receiver not registered or already unregistered")
+            }
+        }
+
         cameraDetector?.stop()
         lightDetector?.stop()
         if (wakeLock.isHeld) {
@@ -131,6 +187,18 @@ class DetectionService : Service(), LifecycleOwner {
         }
     }
 
+    private fun pauseDetection() {
+        cameraDetector?.pause()
+        lightDetector?.pause()
+        Log.d(TAG, "Detection paused")
+    }
+
+    private fun resumeDetection() {
+        cameraDetector?.resume()
+        lightDetector?.resume()
+        Log.d(TAG, "Detection resumed")
+    }
+
     private fun wakeScreen() {
         try {
             // CRITICAL FIX: Use acquire with timeout, don't release immediately
@@ -181,6 +249,8 @@ class DetectionService : Service(), LifecycleOwner {
         private const val NOTIFICATION_ID = 1
         private const val WAKE_DURATION_MS = 100L
         const val ACTION_SENSOR_UPDATE = "com.heisenberg.lux.SENSOR_UPDATE"
+        const val ACTION_ACTIVITY_FOREGROUND = "com.heisenberg.lux.ACTIVITY_FOREGROUND"
+        const val ACTION_ACTIVITY_BACKGROUND = "com.heisenberg.lux.ACTIVITY_BACKGROUND"
         const val EXTRA_SENSOR_TYPE = "sensor_type"
         const val EXTRA_CURRENT_LEVEL = "current_level"
         const val EXTRA_THRESHOLD = "threshold"

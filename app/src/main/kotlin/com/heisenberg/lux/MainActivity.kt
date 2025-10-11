@@ -27,6 +27,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
     private var isReceiverRegistered = false
+    private var isCameraActive = false
+    private var isLightActive = false
 
     private val sensorUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -122,13 +124,13 @@ class MainActivity : AppCompatActivity() {
 
             lightSeekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    binding.lightValue?.text = if (progress == 0) getString(R.string.disabled_caps) else "%.1f".format(calculateLightThreshold(progress))
+                    binding.lightValue.text = if (progress == 0) getString(R.string.disabled_caps) else "%.1f".format(calculateLightThreshold(progress))
                     // Update sensitivity in real-time as user slides
                     if (fromUser) {
                         prefs.edit().putInt(KEY_LIGHT_SENSITIVITY, progress).apply()
                         // Clear live reading when disabled
                         if (progress == 0) {
-                            binding.lightLiveReading?.text = ""
+                            binding.lightLiveReading.text = ""
                         }
                         // Restart service immediately to update threshold display
                         updateService()
@@ -206,6 +208,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Notify service that MainActivity is in foreground
+        val intent = Intent(this, DetectionService::class.java).apply {
+            action = DetectionService.ACTION_ACTIVITY_FOREGROUND
+        }
+        ContextCompat.startForegroundService(this, intent)
+        Log.i(TAG, "Activity resumed, notified service")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Notify service that MainActivity is in background
+        val intent = Intent(this, DetectionService::class.java).apply {
+            action = DetectionService.ACTION_ACTIVITY_BACKGROUND
+        }
+        ContextCompat.startForegroundService(this, intent)
+        Log.i(TAG, "Activity paused, notified service")
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         if (isReceiverRegistered) {
@@ -258,15 +280,32 @@ class MainActivity : AppCompatActivity() {
 
         when (sensorType) {
             DetectionService.SENSOR_CAMERA -> {
+                isCameraActive = exceeds
                 binding.cameraLiveReading?.text = text
                 // Also update the slider value display with threshold
                 binding.cameraValue?.text = "%.0f".format(threshold)
             }
             DetectionService.SENSOR_LIGHT -> {
+                isLightActive = exceeds
                 binding.lightLiveReading?.text = text
                 // Also update the slider value display with threshold
                 binding.lightValue?.text = "%.1f".format(threshold)
             }
+        }
+
+        // Update border based on activity
+        updateBorder()
+    }
+
+    private fun updateBorder() {
+        val isActive = isCameraActive || isLightActive
+
+        if (isActive) {
+            // Show yellow border immediately when activity detected
+            binding.rootContainer.setBackgroundResource(R.drawable.border_yellow)
+        } else {
+            // Remove border immediately when activity stops (💤 appears)
+            binding.rootContainer.setBackgroundResource(android.R.color.transparent)
         }
     }
 
