@@ -1,5 +1,6 @@
 package com.heisenberg.lux
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
@@ -22,6 +24,7 @@ class DetectionService : Service(), LifecycleOwner {
     private lateinit var prefs: SharedPreferences
     private lateinit var wakeLock: PowerManager.WakeLock
     private lateinit var powerManager: PowerManager
+    private lateinit var keyguardManager: KeyguardManager
     private var cameraDetector: MotionDetector? = null
     private var currentCameraSelection: Int = MainActivity.CAMERA_NONE
     private var lightDetector: LightDetector? = null
@@ -67,6 +70,7 @@ class DetectionService : Service(), LifecycleOwner {
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
 
         powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         // Note: These flags are deprecated in API 29+ but are the simplest way to wake the screen
         // from a background service without showing UI. Modern alternatives require launching an Activity.
         @Suppress("DEPRECATION")
@@ -261,6 +265,20 @@ class DetectionService : Service(), LifecycleOwner {
                 Log.i(TAG, "Waking screen")
                 wakeLock.acquire(WAKE_DURATION_MS)
                 // Don't call release() - the timeout handles it automatically
+
+                // Dismiss keyguard if user has enabled bypass lock screen
+                val unlockScreen = prefs.getBoolean(MainActivity.KEY_BYPASS_LOCK_SCREEN, true)
+                if (unlockScreen) {
+                    if (keyguardManager.isKeyguardLocked) {
+                        Log.i(TAG, "Bypassing lock screen via transparent activity")
+                        // Launch a transparent activity that shows on lock screen and dismisses itself
+                        val intent = Intent(this, UnlockActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        }
+                        startActivity(intent)
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error waking screen", e)

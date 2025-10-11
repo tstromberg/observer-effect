@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorManager
@@ -77,6 +78,8 @@ class MainActivity : AppCompatActivity() {
         val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 0)
         val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
         val startAtBoot = prefs.getBoolean(KEY_START_AT_BOOT, false)
+        val unlockScreen = prefs.getBoolean(KEY_BYPASS_LOCK_SCREEN, true)
+        val launchApp = prefs.getString(KEY_LAUNCH_APP, "") ?: ""
 
         with(binding) {
             // Setup camera spinner
@@ -194,6 +197,46 @@ class MainActivity : AppCompatActivity() {
                 prefs.edit().putBoolean(KEY_START_AT_BOOT, isChecked).apply()
                 Log.i(TAG, "Start at boot set to $isChecked")
             }
+
+            // Setup unlock screen checkbox
+            unlockScreenCheckbox?.isChecked = unlockScreen
+            unlockScreenCheckbox?.setOnCheckedChangeListener { _, isChecked ->
+                prefs.edit().putBoolean(KEY_BYPASS_LOCK_SCREEN, isChecked).apply()
+                Log.i(TAG, "Unlock screen set to $isChecked")
+            }
+
+            // Setup launch app spinner
+            val installedApps = getLaunchableApps()
+            val appNames = mutableListOf(getString(R.string.launch_app_none))
+            val appPackages = mutableListOf("")
+            installedApps.forEach { appInfo ->
+                appNames.add(appInfo.loadLabel(packageManager).toString())
+                appPackages.add(appInfo.packageName)
+            }
+
+            val appAdapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, appNames)
+            appAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            launchAppSpinner?.adapter = appAdapter
+
+            // Set current selection
+            val currentIndex = appPackages.indexOf(launchApp).coerceAtLeast(0)
+            launchAppSpinner?.setSelection(currentIndex)
+
+            launchAppSpinner?.onItemSelectedListener =
+                object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(
+                        parent: AdapterView<*>?,
+                        view: View?,
+                        position: Int,
+                        id: Long,
+                    ) {
+                        val selectedPackage = appPackages[position]
+                        prefs.edit().putString(KEY_LAUNCH_APP, selectedPackage).apply()
+                        Log.i(TAG, "Launch app set to $selectedPackage")
+                    }
+
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
         }
 
         // Disable light sensor controls if no sensor is detected
@@ -395,6 +438,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun getLaunchableApps(): List<ApplicationInfo> {
+        val pm = packageManager
+        val mainIntent = Intent(Intent.ACTION_MAIN, null)
+        mainIntent.addCategory(Intent.CATEGORY_LAUNCHER)
+
+        return pm.queryIntentActivities(mainIntent, 0)
+            .map { it.activityInfo.applicationInfo }
+            .distinctBy { it.packageName }
+            .filter { it.packageName != packageName } // Exclude this app
+            .sortedBy { it.loadLabel(pm).toString().lowercase() }
+    }
+
     companion object {
         private const val TAG = "MainActivity"
         const val PREFS_NAME = "HeisenbergLuxPrefs"
@@ -402,6 +457,8 @@ class MainActivity : AppCompatActivity() {
         const val KEY_CAMERA_SENSITIVITY = "camera_sensitivity"
         const val KEY_LIGHT_SENSITIVITY = "light_sensitivity"
         const val KEY_START_AT_BOOT = "start_at_boot"
+        const val KEY_BYPASS_LOCK_SCREEN = "bypass_lock_screen"
+        const val KEY_LAUNCH_APP = "launch_app"
 
         const val CAMERA_NONE = 0
         const val CAMERA_REAR = 1

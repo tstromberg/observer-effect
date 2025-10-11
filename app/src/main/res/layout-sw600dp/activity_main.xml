@@ -112,18 +112,9 @@
                     android:textColor="?attr/colorPrimary"
                     android:fontFamily="sans-serif-medium"
                     android:letterSpacing="0.01"
-                    android:layout_marginBottom="24dp" />
-
-                <!-- Camera Selection -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/camera_selection"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:textColor="?android:attr/textColorPrimary"
                     android:layout_marginBottom="8dp" />
 
+                <!-- Camera Selection -->
                 <Spinner
                     android:id="@+id/cameraSpinner"
                     android:layout_width="match_parent"
@@ -142,7 +133,8 @@
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary"
                     android:layout_marginBottom="8dp"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                    android:labelFor="@id/cameraSeekBar" />
 
                 <LinearLayout
                     android:id="@+id/cameraSensitivityContainer"
@@ -230,7 +222,8 @@
                     android:textSize="15sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="8dp"
+                    android:labelFor="@id/lightSeekBar" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -295,6 +288,16 @@
                 android:orientation="vertical">
 
                 <CheckBox
+                    android:id="@+id/unlockScreenCheckbox"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:text="@string/unlock_screen"
+                    android:textSize="16sp"
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:contentDescription="@string/unlock_screen" />
+
+                <CheckBox
                     android:id="@+id/startAtBootCheckbox"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -302,7 +305,25 @@
                     android:text="@string/start_at_boot"
                     android:textSize="16sp"
                     android:textColor="?android:attr/textColorPrimary"
-                    android:contentDescription="@string/start_at_boot" />
+                    android:contentDescription="@string/start_at_boot"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/launch_app"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:layout_marginBottom="8dp"
+                    android:labelFor="@id/launchAppSpinner" />
+
+                <Spinner
+                    android:id="@+id/launchAppSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:contentDescription="@string/launch_app" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

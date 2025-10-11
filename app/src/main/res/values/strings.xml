@@ -24,10 +24,13 @@
     <string name="light_sensor_format">Light Sensor (%d lux max)</string>
     <string name="level_format" formatted="false">Level: %d / Threshold: %d</string>
     <string name="camera_selection">Camera Selection</string>
-    <string name="camera_none">None (Disabled)</string>
+    <string name="camera_none">No camera selected (disabled)</string>
     <string name="camera_rear_option">Rear Camera</string>
     <string name="camera_front_option">Front Camera</string>
     <string name="start_at_boot">Start at boot</string>
+    <string name="unlock_screen">Unlock screen</string>
+    <string name="launch_app">Launch app</string>
+    <string name="launch_app_none">None (just unlock)</string>
     <string name="sensor_not_available">N/A</string>
     <string name="sensor_not_available_message">This device does not have an ambient light sensor</string>
 </resources>
