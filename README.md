@@ -39,6 +39,8 @@ These permissions are essential for the app to function properly.
 
 ## Building
 
+You are probably best off using Android Studio, but we have make targets too:
+
 ```bash
 make              # Build debug APK → out/heisenberg-debug.apk
 make release      # Build release APK → out/heisenberg-release.apk
@@ -46,8 +48,6 @@ make sideload     # Install via adb
 ```
 
 **Requirements:** Android 8.0+, JDK 17+
-
-See [CLAUDE.md](CLAUDE.md) for detailed build instructions and architecture documentation.
 
 ## License
 
