@@ -2,11 +2,9 @@
 
 **Auto-unlock and auto-open when movement is detected.**
 
-Turn your wall-mounted tablet into a smart display that automatically wakes up and launches your dashboard when you walk by. Uses camera motion detection and ambient light sensors to detect your presence.
+Turn your wall-mounted tablet into a smart display that automatically wakes up and launches your dashboard when you walk by. It uses camera motion detection and ambient light sensors to detect your presence. Perfect for Home Assistant dashboards, alarm panels, calendars, or any app you want instant access to. No more tapping the screen—just walk up and it's ready.
 
-Perfect for Home Assistant dashboards, alarm panels, calendars, or any app you want instant access to. No more tapping the screen—just walk up and it's ready.
-
-Similar concept to [Yakk](https://yakk.bkappz.com/), but open-source with more sensors and different customization options.
+This app is similar in concept to [Yakk](https://yakk.bkappz.com/), but open-source with more sensors and different customization options.
 
 ## Screenshots
 
