@@ -1,5 +1,6 @@
 package com.observer.effect
 
+import android.app.ActivityManager
 import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -15,12 +16,14 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.camera.core.CameraSelector
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
 
 class DetectionService : Service(), LifecycleOwner {
-    private val serviceLifecycleProvider = ServiceLifecycleProvider()
-    override val lifecycle
-        get() = serviceLifecycleProvider.lifecycle
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    override val lifecycle: Lifecycle
+        get() = lifecycleRegistry
     private lateinit var prefs: SharedPreferences
     private lateinit var wakeLock: PowerManager.WakeLock
     private lateinit var powerManager: PowerManager
@@ -63,7 +66,9 @@ class DetectionService : Service(), LifecycleOwner {
 
     override fun onCreate() {
         super.onCreate()
-        serviceLifecycleProvider.onStart()
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        lifecycleRegistry.currentState = Lifecycle.State.STARTED
+        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         Log.i(TAG, "Service created")
 
         prefs = getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE)
@@ -141,7 +146,7 @@ class DetectionService : Service(), LifecycleOwner {
 
     override fun onDestroy() {
         super.onDestroy()
-        serviceLifecycleProvider.onDestroy()
+        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         Log.i(TAG, "Service destroyed")
         prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
 
@@ -284,14 +289,26 @@ class DetectionService : Service(), LifecycleOwner {
                     }
                 }
 
-                // Always launch unlock activity to dismiss lock screen and/or launch app
+                // Launch app if configured
                 val launchApp = prefs.getString(MainActivity.KEY_LAUNCH_APP, "") ?: ""
-                Log.i(TAG, "Launching unlock activity (app=$launchApp, locked=${keyguardManager.isKeyguardLocked})")
-                val intent = Intent(this, UnlockActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                if (launchApp.isNotEmpty()) {
+                    try {
+                        Log.i(TAG, "Bringing app to foreground: $launchApp (locked=${keyguardManager.isKeyguardLocked})")
+
+                        val launchIntent = packageManager.getLaunchIntentForPackage(launchApp)
+                        if (launchIntent != null) {
+                            // Use CLEAR_TASK + NEW_TASK to forcefully bring the app to foreground
+                            // This clears the existing task and creates a fresh one on top
+                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                            startActivity(launchIntent)
+                            Log.i(TAG, "Launched app with CLEAR_TASK flags=${launchIntent.flags}")
+                        } else {
+                            Log.w(TAG, "No launch intent found for package: $launchApp")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error launching app: $launchApp", e)
+                    }
                 }
-                startActivity(intent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error waking screen", e)
