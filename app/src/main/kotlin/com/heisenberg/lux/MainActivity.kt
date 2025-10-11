@@ -64,10 +64,10 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
-        // Load saved values (default to front camera if this is first run)
-        val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, getDefaultCamera())
-        val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 50)
-        val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 50)
+        // Load saved values (default to disabled on first run for safety)
+        val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, CAMERA_NONE)
+        val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 0)
+        val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
         val startAtBoot = prefs.getBoolean(KEY_START_AT_BOOT, false)
 
         with(binding) {
@@ -252,24 +252,35 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Notify service that MainActivity is in foreground
-        val intent =
-            Intent(this, DetectionService::class.java).apply {
-                action = DetectionService.ACTION_ACTIVITY_FOREGROUND
-            }
-        ContextCompat.startForegroundService(this, intent)
-        Log.i(TAG, "Activity resumed, notified service")
+        // Only notify service if it's actually running
+        if (isServiceRunning()) {
+            val intent =
+                Intent(this, DetectionService::class.java).apply {
+                    action = DetectionService.ACTION_ACTIVITY_FOREGROUND
+                }
+            ContextCompat.startForegroundService(this, intent)
+            Log.i(TAG, "Activity resumed, notified service")
+        }
     }
 
     override fun onPause() {
         super.onPause()
-        // Notify service that MainActivity is in background
-        val intent =
-            Intent(this, DetectionService::class.java).apply {
-                action = DetectionService.ACTION_ACTIVITY_BACKGROUND
-            }
-        ContextCompat.startForegroundService(this, intent)
-        Log.i(TAG, "Activity paused, notified service")
+        // Only notify service if it's actually running
+        if (isServiceRunning()) {
+            val intent =
+                Intent(this, DetectionService::class.java).apply {
+                    action = DetectionService.ACTION_ACTIVITY_BACKGROUND
+                }
+            ContextCompat.startForegroundService(this, intent)
+            Log.i(TAG, "Activity paused, notified service")
+        }
+    }
+
+    private fun isServiceRunning(): Boolean {
+        val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, CAMERA_NONE)
+        val cameraEnabled = cameraSelection != CAMERA_NONE && prefs.getInt(KEY_CAMERA_SENSITIVITY, 0) > 0
+        val lightEnabled = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0) > 0
+        return cameraEnabled || lightEnabled
     }
 
     override fun onDestroy() {
@@ -286,7 +297,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateService() {
         val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, CAMERA_NONE)
-        val cameraEnabled = cameraSelection != CAMERA_NONE && prefs.getInt(KEY_CAMERA_SENSITIVITY, 50) > 0
+        val cameraEnabled = cameraSelection != CAMERA_NONE && prefs.getInt(KEY_CAMERA_SENSITIVITY, 0) > 0
         val lightEnabled = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0) > 0
 
         if (cameraEnabled || lightEnabled) {
@@ -308,7 +319,7 @@ class MainActivity : AppCompatActivity() {
         when (sensorType) {
             DetectionService.SENSOR_CAMERA -> {
                 isCameraActive = exceeds
-                val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 50)
+                val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 0)
                 if (cameraSensitivity == 0) {
                     // Don't update display when disabled
                     binding.cameraValue?.text = getString(R.string.disabled_caps)
@@ -323,7 +334,7 @@ class MainActivity : AppCompatActivity() {
             }
             DetectionService.SENSOR_LIGHT -> {
                 isLightActive = exceeds
-                val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 50)
+                val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
                 if (lightSensitivity == 0) {
                     // Don't update display when disabled
                     binding.lightValue.text = getString(R.string.disabled_caps)

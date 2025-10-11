@@ -17,7 +17,7 @@ class BootReceiver : BroadcastReceiver() {
             val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
             val startAtBoot = prefs.getBoolean(MainActivity.KEY_START_AT_BOOT, false)
             val cameraSelection = prefs.getInt(MainActivity.KEY_CAMERA_SELECTION, MainActivity.CAMERA_NONE)
-            val cameraSensitivity = prefs.getInt(MainActivity.KEY_CAMERA_SENSITIVITY, 50)
+            val cameraSensitivity = prefs.getInt(MainActivity.KEY_CAMERA_SENSITIVITY, 0)
             val lightSensitivity = prefs.getInt(MainActivity.KEY_LIGHT_SENSITIVITY, 0)
 
             val cameraEnabled = cameraSelection != MainActivity.CAMERA_NONE && cameraSensitivity > 0

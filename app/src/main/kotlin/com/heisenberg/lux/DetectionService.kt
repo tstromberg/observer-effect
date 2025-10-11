@@ -161,7 +161,7 @@ class DetectionService : Service(), LifecycleOwner {
 
     private fun updateDetectors() {
         val cameraSelection = prefs.getInt(MainActivity.KEY_CAMERA_SELECTION, MainActivity.CAMERA_NONE)
-        val cameraSensitivity = prefs.getInt(MainActivity.KEY_CAMERA_SENSITIVITY, 50)
+        val cameraSensitivity = prefs.getInt(MainActivity.KEY_CAMERA_SENSITIVITY, 0)
         val lightSensitivity = prefs.getInt(MainActivity.KEY_LIGHT_SENSITIVITY, 0)
 
         // Update camera detection based on selection
