@@ -38,15 +38,15 @@ class UnlockActivity : AppCompatActivity() {
         val launchApp = prefs.getString(MainActivity.KEY_LAUNCH_APP, "") ?: ""
         if (launchApp.isNotEmpty()) {
             try {
+                // Use the launcher intent which is designed to bring existing tasks to front
                 val launchIntent = packageManager.getLaunchIntentForPackage(launchApp)
                 if (launchIntent != null) {
-                    // Add flags to bring app to foreground and clear any activities on top
+                    // These flags together will bring the existing task to front
+                    // or launch it fresh if not running
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
                     startActivity(launchIntent)
-                    Log.i(TAG, "Launched app: $launchApp")
+                    Log.i(TAG, "Launched app: $launchApp with flags=${launchIntent.flags}")
                 } else {
                     Log.w(TAG, "No launch intent found for package: $launchApp")
                 }
