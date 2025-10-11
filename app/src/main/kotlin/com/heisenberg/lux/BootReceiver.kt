@@ -7,7 +7,10 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 
 class BootReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             Log.i(TAG, "Boot completed, checking if service should start")
 

@@ -14,7 +14,7 @@ class LightDetector(
     private val context: Context,
     private var sensitivity: Int,
     private val onLightChangeDetected: () -> Unit,
-    private val onLevelUpdate: (Float, Float) -> Unit = { _, _ -> }
+    private val onLevelUpdate: (Float, Float) -> Unit = { _, _ -> },
 ) : SensorEventListener {
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
@@ -26,24 +26,26 @@ class LightDetector(
     private val handler = Handler(Looper.getMainLooper())
 
     // Runnable to broadcast zero change when sensor is stable
-    private val stabilityCheckRunnable = object : Runnable {
-        override fun run() {
-            val now = System.currentTimeMillis()
-            // If no sensor event in last 200ms, broadcast zero change
-            if (now - lastSensorEventTime > STABILITY_CHECK_MS) {
-                val threshold = if (sensitivity == 0) {
-                    Float.MAX_VALUE
-                } else {
-                    (sensitivity * 0.05f).coerceIn(0.05f, 5f)
+    private val stabilityCheckRunnable =
+        object : Runnable {
+            override fun run() {
+                val now = System.currentTimeMillis()
+                // If no sensor event in last 200ms, broadcast zero change
+                if (now - lastSensorEventTime > STABILITY_CHECK_MS) {
+                    val threshold =
+                        if (sensitivity == 0) {
+                            Float.MAX_VALUE
+                        } else {
+                            (sensitivity * 0.05f).coerceIn(0.05f, 5f)
+                        }
+                    onLevelUpdate(0f, threshold)
                 }
-                onLevelUpdate(0f, threshold)
-            }
-            // Schedule next check
-            if (isListening && !isPaused) {
-                handler.postDelayed(this, STABILITY_CHECK_MS)
+                // Schedule next check
+                if (isListening && !isPaused) {
+                    handler.postDelayed(this, STABILITY_CHECK_MS)
+                }
             }
         }
-    }
 
     fun start() {
         if (lightSensor == null) {
@@ -102,13 +104,14 @@ class LightDetector(
             val currentLux = event.values[0]
 
             // Calculate threshold
-            val threshold = if (sensitivity == 0) {
-                Float.MAX_VALUE  // Disabled
-            } else {
-                // Linear: sensitivity 1 = 0.05 lux (most sensitive), sensitivity 100 = 5.0 lux (least sensitive)
-                // Formula: sensitivity * 0.05
-                (sensitivity * 0.05f).coerceIn(0.05f, 5f)
-            }
+            val threshold =
+                if (sensitivity == 0) {
+                    Float.MAX_VALUE // Disabled
+                } else {
+                    // Linear: sensitivity 1 = 0.05 lux (most sensitive), sensitivity 100 = 5.0 lux (least sensitive)
+                    // Formula: sensitivity * 0.05
+                    (sensitivity * 0.05f).coerceIn(0.05f, 5f)
+                }
 
             // Update last sensor event time for stability check
             lastSensorEventTime = System.currentTimeMillis()
@@ -139,13 +142,16 @@ class LightDetector(
         }
     }
 
-    override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
+    override fun onAccuracyChanged(
+        sensor: Sensor,
+        accuracy: Int,
+    ) {
         Log.d(TAG, "Sensor accuracy changed: $accuracy")
     }
 
     companion object {
         private const val TAG = "LightDetector"
         private const val DETECTION_COOLDOWN_MS = 2000L
-        private const val STABILITY_CHECK_MS = 200L  // Check every 200ms if sensor has gone stable
+        private const val STABILITY_CHECK_MS = 200L // Check every 200ms if sensor has gone stable
     }
 }

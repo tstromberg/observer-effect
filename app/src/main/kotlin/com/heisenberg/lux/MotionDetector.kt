@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
 import android.util.Log
-import android.util.Size
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -20,7 +19,7 @@ class MotionDetector(
     private var sensitivity: Int,
     private val cameraSelector: CameraSelector,
     private val onMotionDetected: () -> Unit,
-    private val onLevelUpdate: (Long, Long) -> Unit = { _, _ -> }
+    private val onLevelUpdate: (Long, Long) -> Unit = { _, _ -> },
 ) {
     private var cameraProvider: ProcessCameraProvider? = null
     private var imageAnalysis: ImageAnalysis? = null
@@ -32,7 +31,8 @@ class MotionDetector(
 
     fun start() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-            != PackageManager.PERMISSION_GRANTED) {
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             Log.w(TAG, "Camera permission not granted")
             return
         }
@@ -95,31 +95,32 @@ class MotionDetector(
             return
         }
 
-        imageAnalysis = ImageAnalysis.Builder()
-            .setResolutionSelector(
-                androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
-                    .setResolutionFilter { supportedSizes, _ ->
-                        // Filter to get closest to 320x240
-                        supportedSizes.sortedBy {
-                            val width = if (it.width < it.height) it.width else it.height
-                            val height = if (it.width < it.height) it.height else it.width
-                            kotlin.math.abs(width - 320) + kotlin.math.abs(height - 240)
+        imageAnalysis =
+            ImageAnalysis.Builder()
+                .setResolutionSelector(
+                    androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
+                        .setResolutionFilter { supportedSizes, _ ->
+                            // Filter to get closest to 320x240
+                            supportedSizes.sortedBy {
+                                val width = if (it.width < it.height) it.width else it.height
+                                val height = if (it.width < it.height) it.height else it.width
+                                kotlin.math.abs(width - 320) + kotlin.math.abs(height - 240)
+                            }
                         }
-                    }
-                    .build()
-            )
-            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .build()
-            .also {
-                it.setAnalyzer(executor, ::analyzeFrame)
-            }
+                        .build(),
+                )
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also {
+                    it.setAnalyzer(executor, ::analyzeFrame)
+                }
 
         try {
             cameraProvider.unbindAll()
             cameraProvider.bindToLifecycle(
                 context as LifecycleOwner,
                 cameraSelector,
-                imageAnalysis
+                imageAnalysis,
             )
             val cameraType = if (cameraSelector == CameraSelector.DEFAULT_BACK_CAMERA) "rear" else "front"
             Log.i(TAG, "Camera bound successfully ($cameraType)")
@@ -140,13 +141,14 @@ class MotionDetector(
             buffer.get(data)
 
             // Calculate threshold once per frame
-            val threshold = if (sensitivity == 0) {
-                Long.MAX_VALUE  // Disabled
-            } else {
-                // Linear mapping: sensitivity 1 = threshold 1 (most sensitive), sensitivity 100 = threshold 200 (least sensitive)
-                // Formula: sensitivity * 2 - 1
-                ((sensitivity * 2L) - 1L).coerceIn(1L, 200L)
-            }
+            val threshold =
+                if (sensitivity == 0) {
+                    Long.MAX_VALUE // Disabled
+                } else {
+                    // Linear mapping: sensitivity 1 = threshold 1 (most sensitive), sensitivity 100 = threshold 200 (least sensitive)
+                    // Formula: sensitivity * 2 - 1
+                    ((sensitivity * 2L) - 1L).coerceIn(1L, 200L)
+                }
 
             previousFrame?.let { prevFrame ->
                 if (data.size == prevFrame.size) {

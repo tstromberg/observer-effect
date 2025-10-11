@@ -25,11 +25,37 @@ A minimalist Android app that wakes your device screen when motion or ambient li
 ### Build Commands
 
 ```bash
-make              # Build debug APK
-make release      # Build release APK
-make sideload     # Build and install via adb
-make clean        # Clean build artifacts
+make              # Build debug APK → out/heisenberg-debug.apk
+make release      # Build release APK → out/heisenberg-release.apk (auto-signed)
+make sideload     # Build and install debug APK via adb
+make lint         # Run ktlint code style checks
+make format       # Auto-format code with ktlint
+make clean        # Clean build artifacts (including out/ directory)
 ```
+
+All built APKs are automatically copied to the `out/` directory for easy access.
+
+### Signing Configuration
+
+Release builds use `~/android.jks` by default. Configure signing credentials via:
+
+**Option 1: Environment variables** (recommended for CI/CD)
+```bash
+export ANDROID_KEYSTORE=/path/to/your/keystore.jks       # Optional, defaults to ~/android.jks
+export ANDROID_KEYSTORE_PASSWORD=your_store_password
+export ANDROID_KEY_ALIAS=your_key_alias                  # e.g., key0, androiddebugkey
+export ANDROID_KEY_PASSWORD=your_key_password            # Optional, defaults to store password
+```
+
+**Option 2: gradle.properties** (for local development)
+```properties
+# ~/.gradle/gradle.properties or ./gradle.properties
+android.keystorePassword=your_store_password
+android.keyAlias=your_key_alias
+android.keyPassword=your_key_password
+```
+
+If `~/android.jks` doesn't exist, a debug keystore will be auto-generated.
 
 Or use Gradle directly:
 ```bash

@@ -27,30 +27,36 @@ class DetectionService : Service(), LifecycleOwner {
     private var lightDetector: LightDetector? = null
     private var isScreenOffReceiverRegistered = false
 
-    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        when (key) {
-            MainActivity.KEY_CAMERA_SELECTION,
-            MainActivity.KEY_CAMERA_SENSITIVITY,
-            MainActivity.KEY_LIGHT_SENSITIVITY -> {
-                updateDetectors()
+    private val prefsListener =
+        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                MainActivity.KEY_CAMERA_SELECTION,
+                MainActivity.KEY_CAMERA_SENSITIVITY,
+                MainActivity.KEY_LIGHT_SENSITIVITY,
+                -> {
+                    updateDetectors()
+                }
             }
         }
-    }
 
-    private val screenOffReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                Intent.ACTION_SCREEN_OFF -> {
-                    Log.i(TAG, "Screen turned off, resuming detection")
-                    resumeDetection()
-                }
-                Intent.ACTION_SCREEN_ON -> {
-                    Log.i(TAG, "Screen turned on, pausing detection")
-                    pauseDetection()
+    private val screenOffReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(
+                context: Context?,
+                intent: Intent?,
+            ) {
+                when (intent?.action) {
+                    Intent.ACTION_SCREEN_OFF -> {
+                        Log.i(TAG, "Screen turned off, resuming detection")
+                        resumeDetection()
+                    }
+                    Intent.ACTION_SCREEN_ON -> {
+                        Log.i(TAG, "Screen turned on, pausing detection")
+                        pauseDetection()
+                    }
                 }
             }
         }
-    }
 
     override fun onCreate() {
         super.onCreate()
@@ -64,34 +70,38 @@ class DetectionService : Service(), LifecycleOwner {
         // Note: These flags are deprecated in API 29+ but are the simplest way to wake the screen
         // from a background service without showing UI. Modern alternatives require launching an Activity.
         @Suppress("DEPRECATION")
-        wakeLock = powerManager.newWakeLock(
-            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-            "HeisenbergLux::WakeLock"
-        )
+        wakeLock =
+            powerManager.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "HeisenbergLux::WakeLock",
+            )
 
         // Register screen on/off receiver
-        val screenFilter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_ON)
-            addAction(Intent.ACTION_SCREEN_OFF)
-        }
+        val screenFilter =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+            }
         registerReceiver(screenOffReceiver, screenFilter)
         isScreenOffReceiverRegistered = true
 
         // Create notification channel and start foreground
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            getString(R.string.channel_name),
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = getString(R.string.channel_description)
-        }
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.channel_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = getString(R.string.channel_description)
+            }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
 
-        val notification = Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.service_notification_title))
-            .setContentText(getString(R.string.service_notification_text))
-            .setSmallIcon(android.R.drawable.ic_menu_view)
-            .build()
+        val notification =
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.service_notification_title))
+                .setContentText(getString(R.string.service_notification_text))
+                .setSmallIcon(android.R.drawable.ic_menu_view)
+                .build()
         startForeground(NOTIFICATION_ID, notification)
 
         updateDetectors()
@@ -103,7 +113,11 @@ class DetectionService : Service(), LifecycleOwner {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         when (intent?.action) {
             ACTION_ACTIVITY_FOREGROUND -> {
                 Log.i(TAG, "MainActivity in foreground, resuming detection")
@@ -161,25 +175,27 @@ class DetectionService : Service(), LifecycleOwner {
             currentCameraSelection = MainActivity.CAMERA_NONE
         } else {
             // Camera is enabled - create or update detector
-            val cameraSelector = if (cameraSelection == MainActivity.CAMERA_REAR) {
-                CameraSelector.DEFAULT_BACK_CAMERA
-            } else {
-                CameraSelector.DEFAULT_FRONT_CAMERA
-            }
+            val cameraSelector =
+                if (cameraSelection == MainActivity.CAMERA_REAR) {
+                    CameraSelector.DEFAULT_BACK_CAMERA
+                } else {
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                }
 
             if (cameraDetector == null || currentCameraSelection != cameraSelection) {
                 // Create new detector (or recreate if camera changed)
                 cameraDetector?.stop()
                 Log.d(TAG, "Creating camera detector (selection=$cameraSelection, sensitivity=$cameraSensitivity)")
-                cameraDetector = MotionDetector(
-                    this,
-                    cameraSensitivity,
-                    cameraSelector,
-                    onMotionDetected = { wakeScreen() },
-                    onLevelUpdate = { level, threshold ->
-                        broadcastSensorUpdate(SENSOR_CAMERA, level.toFloat(), threshold.toFloat())
-                    }
-                )
+                cameraDetector =
+                    MotionDetector(
+                        this,
+                        cameraSensitivity,
+                        cameraSelector,
+                        onMotionDetected = { wakeScreen() },
+                        onLevelUpdate = { level, threshold ->
+                            broadcastSensorUpdate(SENSOR_CAMERA, level.toFloat(), threshold.toFloat())
+                        },
+                    )
                 cameraDetector?.start()
                 currentCameraSelection = cameraSelection
             } else {
@@ -201,14 +217,15 @@ class DetectionService : Service(), LifecycleOwner {
             // Light is enabled - create or update detector
             if (lightDetector == null) {
                 Log.d(TAG, "Creating light detector (sensitivity=$lightSensitivity)")
-                lightDetector = LightDetector(
-                    this,
-                    lightSensitivity,
-                    onLightChangeDetected = { wakeScreen() },
-                    onLevelUpdate = { level, threshold ->
-                        broadcastSensorUpdate(SENSOR_LIGHT, level, threshold)
-                    }
-                )
+                lightDetector =
+                    LightDetector(
+                        this,
+                        lightSensitivity,
+                        onLightChangeDetected = { wakeScreen() },
+                        onLevelUpdate = { level, threshold ->
+                            broadcastSensorUpdate(SENSOR_LIGHT, level, threshold)
+                        },
+                    )
                 lightDetector?.start()
             } else {
                 Log.d(TAG, "Updating light sensitivity to $lightSensitivity")
@@ -250,13 +267,18 @@ class DetectionService : Service(), LifecycleOwner {
         }
     }
 
-    private fun broadcastSensorUpdate(sensorType: String, currentLevel: Float, threshold: Float) {
-        val intent = Intent(ACTION_SENSOR_UPDATE).apply {
-            setPackage(packageName)
-            putExtra(EXTRA_SENSOR_TYPE, sensorType)
-            putExtra(EXTRA_CURRENT_LEVEL, currentLevel)
-            putExtra(EXTRA_THRESHOLD, threshold)
-        }
+    private fun broadcastSensorUpdate(
+        sensorType: String,
+        currentLevel: Float,
+        threshold: Float,
+    ) {
+        val intent =
+            Intent(ACTION_SENSOR_UPDATE).apply {
+                setPackage(packageName)
+                putExtra(EXTRA_SENSOR_TYPE, sensorType)
+                putExtra(EXTRA_CURRENT_LEVEL, currentLevel)
+                putExtra(EXTRA_THRESHOLD, threshold)
+            }
         sendBroadcast(intent)
     }
 

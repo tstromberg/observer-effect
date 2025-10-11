@@ -30,27 +30,32 @@ class MainActivity : AppCompatActivity() {
     private var isCameraActive = false
     private var isLightActive = false
 
-    private val sensorUpdateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == DetectionService.ACTION_SENSOR_UPDATE) {
-                val sensorType = intent.getStringExtra(DetectionService.EXTRA_SENSOR_TYPE) ?: return
-                val currentLevel = intent.getFloatExtra(DetectionService.EXTRA_CURRENT_LEVEL, 0f)
-                val threshold = intent.getFloatExtra(DetectionService.EXTRA_THRESHOLD, 0f)
-                runOnUiThread {
-                    updateLiveReading(sensorType, currentLevel, threshold)
+    private val sensorUpdateReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(
+                context: Context?,
+                intent: Intent?,
+            ) {
+                if (intent?.action == DetectionService.ACTION_SENSOR_UPDATE) {
+                    val sensorType = intent.getStringExtra(DetectionService.EXTRA_SENSOR_TYPE) ?: return
+                    val currentLevel = intent.getFloatExtra(DetectionService.EXTRA_CURRENT_LEVEL, 0f)
+                    val threshold = intent.getFloatExtra(DetectionService.EXTRA_THRESHOLD, 0f)
+                    runOnUiThread {
+                        updateLiveReading(sensorType, currentLevel, threshold)
+                    }
                 }
             }
         }
-    }
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            Log.i(TAG, "Camera permission granted")
-            updateService()
+    private val requestPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { isGranted ->
+            if (isGranted) {
+                Log.i(TAG, "Camera permission granted")
+                updateService()
+            }
         }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,11 +72,12 @@ class MainActivity : AppCompatActivity() {
 
         with(binding) {
             // Setup camera spinner
-            val cameraOptions = arrayOf(
-                getString(R.string.camera_none),
-                getString(R.string.camera_rear_option),
-                getString(R.string.camera_front_option)
-            )
+            val cameraOptions =
+                arrayOf(
+                    getString(R.string.camera_none),
+                    getString(R.string.camera_rear_option),
+                    getString(R.string.camera_front_option),
+                )
             val adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, cameraOptions)
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             cameraSpinner?.adapter = adapter
@@ -86,44 +92,56 @@ class MainActivity : AppCompatActivity() {
             // Show/hide sensitivity controls based on camera selection
             updateCameraSensitivityVisibility(cameraSelection)
 
-            cameraSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    prefs.edit().putInt(KEY_CAMERA_SELECTION, position).apply()
-                    Log.i(TAG, "Camera selection changed to $position")
-                    updateCameraSensitivityVisibility(position)
-                    // Clear live reading when camera is disabled
-                    if (position == CAMERA_NONE) {
-                        binding.cameraLiveReading?.text = ""
-                    }
-                    updateService()
-                }
-
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
-            }
-
-            cameraSeekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    val threshold = calculateCameraThreshold(progress)
-                    val thresholdPercent = ((threshold / CAMERA_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
-                    cameraValue?.text = if (progress == 0) getString(R.string.disabled_caps) else "$thresholdPercent%"
-                    // Update sensitivity in real-time as user slides
-                    if (fromUser) {
-                        prefs.edit().putInt(KEY_CAMERA_SENSITIVITY, progress).apply()
-                        // Clear live reading when disabled
-                        if (progress == 0) {
+            cameraSpinner?.onItemSelectedListener =
+                object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(
+                        parent: AdapterView<*>?,
+                        view: View?,
+                        position: Int,
+                        id: Long,
+                    ) {
+                        prefs.edit().putInt(KEY_CAMERA_SELECTION, position).apply()
+                        Log.i(TAG, "Camera selection changed to $position")
+                        updateCameraSensitivityVisibility(position)
+                        // Clear live reading when camera is disabled
+                        if (position == CAMERA_NONE) {
                             binding.cameraLiveReading?.text = ""
                         }
-                        // Restart service immediately to update threshold display
                         updateService()
                     }
+
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
                 }
 
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            cameraSeekBar?.setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                        seekBar: SeekBar?,
+                        progress: Int,
+                        fromUser: Boolean,
+                    ) {
+                        val threshold = calculateCameraThreshold(progress)
+                        val thresholdPercent = ((threshold / CAMERA_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+                        cameraValue?.text = if (progress == 0) getString(R.string.disabled_caps) else "$thresholdPercent%"
+                        // Update sensitivity in real-time as user slides
+                        if (fromUser) {
+                            prefs.edit().putInt(KEY_CAMERA_SENSITIVITY, progress).apply()
+                            // Clear live reading when disabled
+                            if (progress == 0) {
+                                binding.cameraLiveReading?.text = ""
+                            }
+                            // Restart service immediately to update threshold display
+                            updateService()
+                        }
+                    }
 
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                    Log.i(TAG, "Camera sensitivity finalized at ${seekBar?.progress}")
-                }
-            })
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                        Log.i(TAG, "Camera sensitivity finalized at ${seekBar?.progress}")
+                    }
+                },
+            )
 
             // Setup light sensor
             lightSeekBar.progress = lightSensitivity
@@ -131,30 +149,36 @@ class MainActivity : AppCompatActivity() {
             val lightThresholdPercent = ((lightThreshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
             lightValue.text = if (lightSensitivity == 0) getString(R.string.disabled_caps) else "$lightThresholdPercent%"
 
-            lightSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    val threshold = calculateLightThreshold(progress)
-                    val thresholdPercent = ((threshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
-                    binding.lightValue.text = if (progress == 0) getString(R.string.disabled_caps) else "$thresholdPercent%"
-                    // Update sensitivity in real-time as user slides
-                    if (fromUser) {
-                        prefs.edit().putInt(KEY_LIGHT_SENSITIVITY, progress).apply()
-                        // Clear live reading when disabled
-                        if (progress == 0) {
-                            binding.lightLiveReading.text = ""
+            lightSeekBar.setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                        seekBar: SeekBar?,
+                        progress: Int,
+                        fromUser: Boolean,
+                    ) {
+                        val threshold = calculateLightThreshold(progress)
+                        val thresholdPercent = ((threshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
+                        binding.lightValue.text = if (progress == 0) getString(R.string.disabled_caps) else "$thresholdPercent%"
+                        // Update sensitivity in real-time as user slides
+                        if (fromUser) {
+                            prefs.edit().putInt(KEY_LIGHT_SENSITIVITY, progress).apply()
+                            // Clear live reading when disabled
+                            if (progress == 0) {
+                                binding.lightLiveReading.text = ""
+                            }
+                            // Restart service immediately to update threshold display
+                            updateService()
                         }
-                        // Restart service immediately to update threshold display
-                        updateService()
                     }
-                }
 
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
 
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                    val progress = seekBar?.progress ?: 0
-                    Log.i(TAG, "Light sensitivity finalized at $progress")
-                }
-            })
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                        val progress = seekBar?.progress ?: 0
+                        Log.i(TAG, "Light sensitivity finalized at $progress")
+                    }
+                },
+            )
 
             // Setup boot checkbox
             startAtBootCheckbox?.isChecked = startAtBoot
@@ -229,9 +253,10 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // Notify service that MainActivity is in foreground
-        val intent = Intent(this, DetectionService::class.java).apply {
-            action = DetectionService.ACTION_ACTIVITY_FOREGROUND
-        }
+        val intent =
+            Intent(this, DetectionService::class.java).apply {
+                action = DetectionService.ACTION_ACTIVITY_FOREGROUND
+            }
         ContextCompat.startForegroundService(this, intent)
         Log.i(TAG, "Activity resumed, notified service")
     }
@@ -239,9 +264,10 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         // Notify service that MainActivity is in background
-        val intent = Intent(this, DetectionService::class.java).apply {
-            action = DetectionService.ACTION_ACTIVITY_BACKGROUND
-        }
+        val intent =
+            Intent(this, DetectionService::class.java).apply {
+                action = DetectionService.ACTION_ACTIVITY_BACKGROUND
+            }
         ContextCompat.startForegroundService(this, intent)
         Log.i(TAG, "Activity paused, notified service")
     }
@@ -271,7 +297,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateLiveReading(sensorType: String, currentLevel: Float, threshold: Float) {
+    private fun updateLiveReading(
+        sensorType: String,
+        currentLevel: Float,
+        threshold: Float,
+    ) {
         val exceeds = currentLevel > threshold
         val emoji = if (exceeds) "\uD83D\uDCA1" else "\uD83D\uDCA4"
 
@@ -319,7 +349,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun calculateCameraThreshold(sensitivity: Int): Long {
         return if (sensitivity == 0) {
-            Long.MAX_VALUE  // Disabled
+            Long.MAX_VALUE // Disabled
         } else {
             // Linear mapping: sensitivity 1 = threshold 1 (most sensitive), sensitivity 100 = threshold 200 (least sensitive)
             // Formula: sensitivity * 2 - 1
@@ -350,7 +380,7 @@ class MainActivity : AppCompatActivity() {
         const val CAMERA_FRONT = 2
 
         // Maximum values for percentage calculation
-        private const val CAMERA_MAX_LEVEL = 200f  // Camera threshold max is 200
-        private const val LIGHT_MAX_LEVEL = 5f     // Light sensor max observed ~4.6 lux, using 5 for headroom
+        private const val CAMERA_MAX_LEVEL = 200f // Camera threshold max is 200
+        private const val LIGHT_MAX_LEVEL = 5f // Light sensor max observed ~4.6 lux, using 5 for headroom
     }
 }

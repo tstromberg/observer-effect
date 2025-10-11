@@ -2,6 +2,10 @@
 *.apk
 *.aab
 
+# Keystore files (keep private!)
+*.keystore
+*.jks
+
 # Files for the ART/Dalvik VM
 *.dex
 
