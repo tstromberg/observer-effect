@@ -259,6 +259,12 @@ class DetectionService : Service(), LifecycleOwner {
 
     private fun wakeScreen() {
         try {
+            // Don't auto-open if screen is already on (user is actively using device)
+            if (powerManager.isInteractive) {
+                Log.d(TAG, "Screen already on, skipping auto-open")
+                return
+            }
+
             // CRITICAL FIX: Use acquire with timeout, don't release immediately
             // The timeout will auto-release after WAKE_DURATION_MS
             if (!wakeLock.isHeld) {
