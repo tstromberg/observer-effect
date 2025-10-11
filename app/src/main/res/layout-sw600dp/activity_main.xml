@@ -15,7 +15,25 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="32dp">
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
+        android:paddingTop="32dp"
+        android:paddingBottom="32dp">
+
+        <!-- Content Container with Max Width -->
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guidelineStart"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.1" />
+
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guidelineEnd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.9" />
 
         <!-- App Title with Whimsical Style -->
         <TextView
@@ -37,8 +55,8 @@
             android:shadowRadius="4"
             android:rotation="-2"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintStart_toStartOf="@id/guidelineStart"
+            app:layout_constraintEnd_toEndOf="@id/guidelineEnd" />
 
         <!-- App Subtitle -->
         <TextView
@@ -48,28 +66,36 @@
             android:text="@string/app_subtitle"
             android:textSize="16sp"
             android:textColor="?android:attr/textColorSecondary"
-            android:layout_marginBottom="32dp"
+            android:layout_marginBottom="0dp"
             android:gravity="center"
             android:fontFamily="sans-serif"
             app:layout_constraintTop_toBottomOf="@id/appTitle"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintStart_toStartOf="@id/guidelineStart"
+            app:layout_constraintEnd_toEndOf="@id/guidelineEnd" />
+
+        <!-- Vertical guideline at center for two-column layout -->
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guidelineCenter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.5" />
 
         <!-- Left Column: Motion Detection Card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/motionCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginEnd="8dp"
             app:cardElevation="4dp"
             app:cardCornerRadius="20dp"
             app:contentPadding="24dp"
             app:strokeWidth="0dp"
             app:cardBackgroundColor="@color/card_motion"
             app:layout_constraintTop_toBottomOf="@id/appSubtitle"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/lightCard"
-            app:layout_constraintWidth_percent="0.5">
+            app:layout_constraintStart_toStartOf="@id/guidelineStart"
+            app:layout_constraintEnd_toEndOf="@id/guidelineCenter">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -141,7 +167,7 @@
 
                     <TextView
                         android:id="@+id/cameraValue"
-                        android:layout_width="80dp"
+                        android:layout_width="110dp"
                         android:layout_height="wrap_content"
                         android:text="50"
                         android:textSize="15sp"
@@ -168,16 +194,16 @@
             android:id="@+id/lightCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginStart="8dp"
             app:cardElevation="4dp"
             app:cardCornerRadius="20dp"
             app:contentPadding="24dp"
             app:strokeWidth="0dp"
             app:cardBackgroundColor="@color/card_light"
             app:layout_constraintTop_toBottomOf="@id/appSubtitle"
-            app:layout_constraintStart_toEndOf="@id/motionCard"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintWidth_percent="0.5">
+            app:layout_constraintStart_toStartOf="@id/guidelineCenter"
+            app:layout_constraintEnd_toEndOf="@id/guidelineEnd">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -227,7 +253,7 @@
 
                     <TextView
                         android:id="@+id/lightValue"
-                        android:layout_width="80dp"
+                        android:layout_width="110dp"
                         android:layout_height="wrap_content"
                         android:text="0"
                         android:textSize="15sp"
@@ -260,8 +286,8 @@
             app:strokeWidth="0dp"
             app:cardBackgroundColor="@color/card_settings"
             app:layout_constraintTop_toBottomOf="@id/motionCard"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintStart_toStartOf="@id/guidelineStart"
+            app:layout_constraintEnd_toEndOf="@id/guidelineEnd">
 
             <LinearLayout
                 android:layout_width="match_parent"

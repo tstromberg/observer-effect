@@ -28,4 +28,6 @@
     <string name="camera_rear_option">Rear Camera</string>
     <string name="camera_front_option">Front Camera</string>
     <string name="start_at_boot">Start at boot</string>
+    <string name="sensor_not_available">N/A</string>
+    <string name="sensor_not_available_message">This device does not have an ambient light sensor</string>
 </resources>

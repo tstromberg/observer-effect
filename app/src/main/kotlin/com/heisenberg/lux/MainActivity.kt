@@ -64,7 +64,15 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
-        // Load saved values (default to disabled on first run for safety)
+        // On first run, detect and save default camera (but keep sensitivity at 0 for safety)
+        val isFirstRun = !prefs.contains(KEY_CAMERA_SELECTION)
+        if (isFirstRun) {
+            val defaultCamera = getDefaultCamera()
+            prefs.edit().putInt(KEY_CAMERA_SELECTION, defaultCamera).apply()
+            Log.i(TAG, "First run: detected default camera = $defaultCamera")
+        }
+
+        // Load saved values
         val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, CAMERA_NONE)
         val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 0)
         val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
@@ -188,10 +196,19 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Hide light sensor card if no sensor is detected
+        // Disable light sensor controls if no sensor is detected
         val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
-        binding.lightCard.visibility = if (lightSensor != null) View.VISIBLE else View.GONE
+        if (lightSensor == null) {
+            // Sensor not available - disable controls and show message
+            binding.lightSeekBar.isEnabled = false
+            binding.lightSeekBar.alpha = 0.5f
+            binding.lightValue.text = getString(R.string.sensor_not_available)
+            binding.lightValue.alpha = 0.5f
+            binding.lightLiveReading.text = getString(R.string.sensor_not_available_message)
+            binding.lightLiveReading.visibility = View.VISIBLE
+            Log.i(TAG, "Light sensor not detected on this device")
+        }
 
         // Request camera permission if needed
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
