@@ -126,12 +126,12 @@ class MainActivity : AppCompatActivity() {
             })
 
             // Setup light sensor
-            lightSeekBar?.progress = lightSensitivity
+            lightSeekBar.progress = lightSensitivity
             val lightThreshold = calculateLightThreshold(lightSensitivity)
             val lightThresholdPercent = ((lightThreshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
-            lightValue?.text = if (lightSensitivity == 0) getString(R.string.disabled_caps) else "$lightThresholdPercent%"
+            lightValue.text = if (lightSensitivity == 0) getString(R.string.disabled_caps) else "$lightThresholdPercent%"
 
-            lightSeekBar?.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            lightSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                     val threshold = calculateLightThreshold(progress)
                     val thresholdPercent = ((threshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
@@ -296,14 +296,14 @@ class MainActivity : AppCompatActivity() {
                 val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 50)
                 if (lightSensitivity == 0) {
                     // Don't update display when disabled
-                    binding.lightValue?.text = getString(R.string.disabled_caps)
+                    binding.lightValue.text = getString(R.string.disabled_caps)
                 } else {
                     // Convert light level to percentage (0-5 lux -> 0-100%)
                     val levelPercent = ((currentLevel / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
                     val thresholdPercent = ((threshold / LIGHT_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
-                    binding.lightLiveReading?.text = "$emoji Current activity level: $levelPercent%"
+                    binding.lightLiveReading.text = "$emoji Current activity level: $levelPercent%"
                     // Also update the slider value display with threshold
-                    binding.lightValue?.text = "$thresholdPercent%"
+                    binding.lightValue.text = "$thresholdPercent%"
                 }
             }
         }

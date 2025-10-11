@@ -96,7 +96,18 @@ class MotionDetector(
         }
 
         imageAnalysis = ImageAnalysis.Builder()
-            .setTargetResolution(Size(320, 240))
+            .setResolutionSelector(
+                androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
+                    .setResolutionFilter { supportedSizes, _ ->
+                        // Filter to get closest to 320x240
+                        supportedSizes.sortedBy {
+                            val width = if (it.width < it.height) it.width else it.height
+                            val height = if (it.width < it.height) it.height else it.width
+                            kotlin.math.abs(width - 320) + kotlin.math.abs(height - 240)
+                        }
+                    }
+                    .build()
+            )
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
             .also {

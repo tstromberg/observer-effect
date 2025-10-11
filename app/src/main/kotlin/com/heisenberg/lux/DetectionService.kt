@@ -61,6 +61,9 @@ class DetectionService : Service(), LifecycleOwner {
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
 
         powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        // Note: These flags are deprecated in API 29+ but are the simplest way to wake the screen
+        // from a background service without showing UI. Modern alternatives require launching an Activity.
+        @Suppress("DEPRECATION")
         wakeLock = powerManager.newWakeLock(
             PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
             "HeisenbergLux::WakeLock"
