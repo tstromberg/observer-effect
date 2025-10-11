@@ -40,7 +40,11 @@ class UnlockActivity : AppCompatActivity() {
             try {
                 val launchIntent = packageManager.getLaunchIntentForPackage(launchApp)
                 if (launchIntent != null) {
+                    // Add flags to bring app to foreground and clear any activities on top
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                     startActivity(launchIntent)
                     Log.i(TAG, "Launched app: $launchApp")
                 } else {
