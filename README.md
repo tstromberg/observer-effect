@@ -8,10 +8,13 @@ The name is a nod to Heisenberg's uncertainty principle (you can't observe witho
 
 ## Screenshots
 
-<p float="left">
-  <img src="media/mobile.png" width="45%" />
-  <img src="media/tablet.png" width="45%" />
-</p>
+**Tablet View**
+
+<img src="media/tablet.png" height="480px" />
+
+**Mobile View**
+
+<img src="media/mobile.png" height="480px" />
 
 ## Features
 
