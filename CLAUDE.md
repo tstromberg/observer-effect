@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Heisenberg's Lux** is a minimalist Android app (Kotlin, min SDK 26) that wakes the device screen when motion or ambient light changes are detected. The name is a playful reference to Heisenberg's uncertainty principle (you can't observe without affecting the system) combined with "lux" (the SI unit for illuminance). The app is designed as a canonical example of modern Android development with minimal dependencies and maximum simplicity.
+**Observer Effect** (displayed as "The Observer Effect" in the app) is a minimalist Android app (Kotlin, min SDK 26) that wakes the device screen when motion or ambient light changes are detected. The name refers to the observer effect in physics, where the act of observation changes what is being observed—in this case, your approach to the tablet causes it to wake up. The app is designed as a canonical example of modern Android development with minimal dependencies and maximum simplicity.
 
 **Core Philosophy**: Simplicity, robustness, minimal dependencies. Use traditional Android Views, not Jetpack Compose. This app should be elegant enough to serve as a reference implementation.
 

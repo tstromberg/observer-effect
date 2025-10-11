@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Light Theme -->
-    <style name="Theme.HeisenbergLux" parent="Theme.Material3.Light.NoActionBar">
+    <style name="Theme.ObserverEffect" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primary_dark</item>
         <item name="colorSecondary">@color/accent</item>

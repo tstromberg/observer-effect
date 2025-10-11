@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
-        // On first run, detect and save default camera (but keep sensitivity at 0 for safety)
+        // On first run, detect and save defaults (but keep sensitivity at 0 for safety)
         val isFirstRun = !prefs.contains(KEY_CAMERA_SELECTION)
         if (isFirstRun) {
             val defaultCamera = getDefaultCamera()
@@ -78,8 +78,8 @@ class MainActivity : AppCompatActivity() {
         val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 0)
         val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
         val startAtBoot = prefs.getBoolean(KEY_START_AT_BOOT, false)
-        val unlockScreen = prefs.getBoolean(KEY_BYPASS_LOCK_SCREEN, true)
         val launchApp = prefs.getString(KEY_LAUNCH_APP, "") ?: ""
+        val notificationSound = prefs.getString(KEY_NOTIFICATION_SOUND, "") ?: ""
 
         with(binding) {
             // Setup camera spinner
@@ -198,13 +198,6 @@ class MainActivity : AppCompatActivity() {
                 Log.i(TAG, "Start at boot set to $isChecked")
             }
 
-            // Setup unlock screen checkbox
-            unlockScreenCheckbox?.isChecked = unlockScreen
-            unlockScreenCheckbox?.setOnCheckedChangeListener { _, isChecked ->
-                prefs.edit().putBoolean(KEY_BYPASS_LOCK_SCREEN, isChecked).apply()
-                Log.i(TAG, "Unlock screen set to $isChecked")
-            }
-
             // Setup launch app spinner
             val installedApps = getLaunchableApps()
             val appNames = mutableListOf(getString(R.string.launch_app_none))
@@ -233,6 +226,39 @@ class MainActivity : AppCompatActivity() {
                         val selectedPackage = appPackages[position]
                         prefs.edit().putString(KEY_LAUNCH_APP, selectedPackage).apply()
                         Log.i(TAG, "Launch app set to $selectedPackage")
+                    }
+
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
+
+            // Setup notification sound spinner
+            val notificationSounds = getNotificationSounds()
+            val soundNames = mutableListOf(getString(R.string.notification_sound_none))
+            val soundUris = mutableListOf("")
+            notificationSounds.forEach { (name, uri) ->
+                soundNames.add(name)
+                soundUris.add(uri)
+            }
+
+            val soundAdapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, soundNames)
+            soundAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            notificationSoundSpinner?.adapter = soundAdapter
+
+            // Set current selection
+            val currentSoundIndex = soundUris.indexOf(notificationSound).coerceAtLeast(0)
+            notificationSoundSpinner?.setSelection(currentSoundIndex)
+
+            notificationSoundSpinner?.onItemSelectedListener =
+                object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(
+                        parent: AdapterView<*>?,
+                        view: View?,
+                        position: Int,
+                        id: Long,
+                    ) {
+                        val selectedUri = soundUris[position]
+                        prefs.edit().putString(KEY_NOTIFICATION_SOUND, selectedUri).apply()
+                        Log.i(TAG, "Notification sound set to $selectedUri")
                     }
 
                     override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -450,15 +476,35 @@ class MainActivity : AppCompatActivity() {
             .sortedBy { it.loadLabel(pm).toString().lowercase() }
     }
 
+    private fun getNotificationSounds(): List<Pair<String, String>> {
+        val sounds = mutableListOf<Pair<String, String>>()
+        val ringtoneManager = android.media.RingtoneManager(this)
+        ringtoneManager.setType(android.media.RingtoneManager.TYPE_NOTIFICATION)
+        val cursor = ringtoneManager.cursor
+
+        try {
+            while (cursor.moveToNext()) {
+                val title = cursor.getString(android.media.RingtoneManager.TITLE_COLUMN_INDEX)
+                val uri = ringtoneManager.getRingtoneUri(cursor.position).toString()
+                sounds.add(Pair(title, uri))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading notification sounds", e)
+        }
+
+        return sounds.sortedBy { it.first.lowercase() }
+    }
+
     companion object {
         private const val TAG = "MainActivity"
-        const val PREFS_NAME = "HeisenbergLuxPrefs"
+        const val PREFS_NAME = "ObserverEffectPrefs"
         const val KEY_CAMERA_SELECTION = "camera_selection"
         const val KEY_CAMERA_SENSITIVITY = "camera_sensitivity"
         const val KEY_LIGHT_SENSITIVITY = "light_sensitivity"
         const val KEY_START_AT_BOOT = "start_at_boot"
         const val KEY_BYPASS_LOCK_SCREEN = "bypass_lock_screen"
         const val KEY_LAUNCH_APP = "launch_app"
+        const val KEY_NOTIFICATION_SOUND = "notification_sound"
 
         const val CAMERA_NONE = 0
         const val CAMERA_REAR = 1

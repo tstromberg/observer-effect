@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Heisenberg\'s Lux💡</string>
-    <string name="service_notification_title">Heisenberg\'s Lux</string>
+    <string name="app_name">Observer Effect</string>
+    <string name="app_title">The Observer Effect</string>
+    <string name="service_notification_title">The Observer Effect</string>
     <string name="service_notification_text">Monitoring for motion</string>
-    <string name="app_subtitle">Enables the display when motion is detected</string>
+    <string name="app_subtitle">Observing the system changes it</string>
     <string name="motion_detection">Camera Sensor</string>
     <string name="light_detection">Ambient Light Sensor</string>
     <string name="sensitivity">Minimum activity level</string>
@@ -28,9 +29,11 @@
     <string name="camera_rear_option">Rear Camera</string>
     <string name="camera_front_option">Front Camera</string>
     <string name="start_at_boot">Start at boot</string>
-    <string name="unlock_screen">Unlock screen</string>
+    <string name="unlock_screen">Dismiss lock screen (swipe only)</string>
     <string name="launch_app">Launch app</string>
-    <string name="launch_app_none">None (just unlock)</string>
+    <string name="launch_app_none">None</string>
+    <string name="notification_sound">Notification sound</string>
+    <string name="notification_sound_none">None</string>
     <string name="sensor_not_available">N/A</string>
     <string name="sensor_not_available_message">This device does not have an ambient light sensor</string>
 </resources>

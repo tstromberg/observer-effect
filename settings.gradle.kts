@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Heisenbergs Lux"
+rootProject.name = "Observer Effect"
 include(":app")

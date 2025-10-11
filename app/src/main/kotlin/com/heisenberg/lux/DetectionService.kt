@@ -77,7 +77,7 @@ class DetectionService : Service(), LifecycleOwner {
         wakeLock =
             powerManager.newWakeLock(
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                "HeisenbergLux::WakeLock",
+                "ObserverEffect::WakeLock",
             )
 
         // Register screen on/off receiver
@@ -266,19 +266,26 @@ class DetectionService : Service(), LifecycleOwner {
                 wakeLock.acquire(WAKE_DURATION_MS)
                 // Don't call release() - the timeout handles it automatically
 
-                // Dismiss keyguard if user has enabled bypass lock screen
-                val unlockScreen = prefs.getBoolean(MainActivity.KEY_BYPASS_LOCK_SCREEN, true)
-                if (unlockScreen) {
-                    if (keyguardManager.isKeyguardLocked) {
-                        Log.i(TAG, "Bypassing lock screen via transparent activity")
-                        // Launch a transparent activity that shows on lock screen and dismisses itself
-                        val intent = Intent(this, UnlockActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                        }
-                        startActivity(intent)
+                // Play notification sound if configured
+                val notificationSoundUri = prefs.getString(MainActivity.KEY_NOTIFICATION_SOUND, "") ?: ""
+                if (notificationSoundUri.isNotEmpty()) {
+                    try {
+                        val ringtone = android.media.RingtoneManager.getRingtone(this, android.net.Uri.parse(notificationSoundUri))
+                        ringtone?.play()
+                        Log.i(TAG, "Playing notification sound: $notificationSoundUri")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error playing notification sound", e)
                     }
                 }
+
+                // Always launch unlock activity to dismiss lock screen and/or launch app
+                val launchApp = prefs.getString(MainActivity.KEY_LAUNCH_APP, "") ?: ""
+                Log.i(TAG, "Launching unlock activity (app=$launchApp, locked=${keyguardManager.isKeyguardLocked})")
+                val intent = Intent(this, UnlockActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                }
+                startActivity(intent)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error waking screen", e)
