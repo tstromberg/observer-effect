@@ -63,10 +63,15 @@ class LightDetector(
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        val currentLux = event.values[0]
+        try {
+            if (event.values.isEmpty()) {
+                Log.w(TAG, "Received sensor event with no values")
+                return
+            }
+            val currentLux = event.values[0]
 
-        previousLux?.let { prevLux ->
-            val change = abs(currentLux - prevLux)
+            previousLux?.let { prevLux ->
+                val change = abs(currentLux - prevLux)
 
             // Simple linear curve: Real-world light changes are typically 0-10 lux indoors
             // sensitivity 0 = disabled, sensitivity 1 = 10 lux, sensitivity 100 = 0.1 lux
@@ -98,11 +103,14 @@ class LightDetector(
             onLevelUpdate(0f, threshold)
         }
 
-        previousLux = currentLux
+            previousLux = currentLux
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing sensor event", e)
+        }
     }
 
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-        // Not used
+        Log.d(TAG, "Sensor accuracy changed: $accuracy")
     }
 
     companion object {

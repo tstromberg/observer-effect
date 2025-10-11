@@ -23,6 +23,7 @@ class DetectionService : Service(), LifecycleOwner {
     private lateinit var wakeLock: PowerManager.WakeLock
     private lateinit var powerManager: PowerManager
     private var cameraDetector: MotionDetector? = null
+    private var currentCameraSelection: Int = MainActivity.CAMERA_NONE
     private var lightDetector: LightDetector? = null
     private var isScreenOffReceiverRegistered = false
 
@@ -73,8 +74,23 @@ class DetectionService : Service(), LifecycleOwner {
         registerReceiver(screenOffReceiver, screenFilter)
         isScreenOffReceiverRegistered = true
 
-        createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        // Create notification channel and start foreground
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.channel_name),
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = getString(R.string.channel_description)
+        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+
+        val notification = Notification.Builder(this, CHANNEL_ID)
+            .setContentTitle(getString(R.string.service_notification_title))
+            .setContentText(getString(R.string.service_notification_text))
+            .setSmallIcon(android.R.drawable.ic_menu_view)
+            .build()
+        startForeground(NOTIFICATION_ID, notification)
+
         updateDetectors()
 
         // Pause detection initially if screen is on
@@ -140,7 +156,10 @@ class DetectionService : Service(), LifecycleOwner {
                     CameraSelector.DEFAULT_FRONT_CAMERA
                 }
 
-                if (cameraDetector == null) {
+                val currentDetector = cameraDetector
+                if (currentDetector == null) {
+                    // Create new detector if none exists
+                    Log.d(TAG, "Creating new camera detector (selection=$cameraSelection)")
                     cameraDetector = MotionDetector(
                         this,
                         cameraSensitivity,
@@ -151,19 +170,43 @@ class DetectionService : Service(), LifecycleOwner {
                         }
                     )
                     cameraDetector?.start()
+                    currentCameraSelection = cameraSelection
+                } else if (currentCameraSelection != cameraSelection) {
+                    // Camera selection changed - stop old detector and create new one
+                    Log.d(TAG, "Camera selection changed from $currentCameraSelection to $cameraSelection, recreating detector")
+                    currentDetector.stop()
+                    cameraDetector = MotionDetector(
+                        this,
+                        cameraSensitivity,
+                        cameraSelector,
+                        onMotionDetected = { wakeScreen() },
+                        onLevelUpdate = { level, threshold ->
+                            broadcastSensorUpdate(SENSOR_CAMERA, level.toFloat(), threshold.toFloat())
+                        }
+                    )
+                    cameraDetector?.start()
+                    currentCameraSelection = cameraSelection
                 } else {
-                    cameraDetector?.updateSensitivity(cameraSensitivity)
+                    // Same camera, just update sensitivity
+                    Log.d(TAG, "Updating camera sensitivity to $cameraSensitivity")
+                    currentDetector.updateSensitivity(cameraSensitivity)
                 }
             }
             MainActivity.CAMERA_NONE -> {
-                cameraDetector?.stop()
-                cameraDetector = null
+                if (cameraDetector != null) {
+                    Log.d(TAG, "Stopping camera detector")
+                    cameraDetector?.stop()
+                    cameraDetector = null
+                }
+                currentCameraSelection = MainActivity.CAMERA_NONE
             }
         }
 
         // Update light detection
         if (lightSensitivity > 0) {
-            if (lightDetector == null) {
+            val currentLightDetector = lightDetector
+            if (currentLightDetector == null) {
+                Log.d(TAG, "Creating new light detector (sensitivity=$lightSensitivity)")
                 lightDetector = LightDetector(
                     this,
                     lightSensitivity,
@@ -174,11 +217,15 @@ class DetectionService : Service(), LifecycleOwner {
                 )
                 lightDetector?.start()
             } else {
-                lightDetector?.updateSensitivity(lightSensitivity)
+                Log.d(TAG, "Updating light sensitivity to $lightSensitivity")
+                currentLightDetector.updateSensitivity(lightSensitivity)
             }
         } else {
-            lightDetector?.stop()
-            lightDetector = null
+            if (lightDetector != null) {
+                Log.d(TAG, "Stopping light detector")
+                lightDetector?.stop()
+                lightDetector = null
+            }
         }
 
         // Stop service if all disabled
@@ -221,26 +268,6 @@ class DetectionService : Service(), LifecycleOwner {
             putExtra(EXTRA_THRESHOLD, threshold)
         }
         sendBroadcast(intent)
-    }
-
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            getString(R.string.channel_name),
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = getString(R.string.channel_description)
-        }
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.createNotificationChannel(channel)
-    }
-
-    private fun createNotification(): Notification {
-        return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.service_notification_title))
-            .setContentText(getString(R.string.service_notification_text))
-            .setSmallIcon(android.R.drawable.ic_menu_view)
-            .build()
     }
 
     companion object {

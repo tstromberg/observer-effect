@@ -48,7 +48,6 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted ->
         if (isGranted) {
             Log.i(TAG, "Camera permission granted")
-            updateCameraInfo()
             updateService()
         }
     }
@@ -153,9 +152,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        updateCameraInfo()
-        updateLightSensorVisibility()
-        requestCameraPermissionIfNeeded()
+        // Hide light sensor card if no sensor is detected
+        val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+        binding.lightCard.visibility = if (lightSensor != null) View.VISIBLE else View.GONE
+
+        // Request camera permission if needed
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
 
         // Register broadcast receiver for sensor updates
         val filter = IntentFilter(DetectionService.ACTION_SENSOR_UPDATE)
@@ -240,26 +245,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestCameraPermissionIfNeeded() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-            != PackageManager.PERMISSION_GRANTED) {
-            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    private fun updateCameraInfo() {
-        // Camera info is no longer displayed, but we keep this method
-        // in case we need to add camera detection logic in the future
-    }
-
-    private fun updateLightSensorVisibility() {
-        val sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
-
-        // Hide the entire light sensor card if no sensor is detected
-        binding.lightCard.visibility = if (lightSensor != null) View.VISIBLE else View.GONE
-    }
-
     private fun updateService() {
         val cameraSelection = prefs.getInt(KEY_CAMERA_SELECTION, CAMERA_NONE)
         val lightEnabled = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0) > 0
@@ -294,17 +279,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Update border based on activity
-        updateBorder()
-    }
-
-    private fun updateBorder() {
         val isActive = isCameraActive || isLightActive
-
         if (isActive) {
-            // Show yellow border immediately when activity detected
             binding.rootContainer.setBackgroundResource(R.drawable.border_yellow)
         } else {
-            // Remove border immediately when activity stops (💤 appears)
             binding.rootContainer.setBackgroundResource(android.R.color.transparent)
         }
     }

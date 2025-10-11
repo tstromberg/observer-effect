@@ -118,71 +118,62 @@ class MotionDetector(
     }
 
     private fun analyzeFrame(image: ImageProxy) {
-        if (image.format != ImageFormat.YUV_420_888) {
+        try {
+            if (image.format != ImageFormat.YUV_420_888) {
+                image.close()
+                return
+            }
+
+            val buffer = image.planes[0].buffer
+            val data = ByteArray(buffer.remaining())
+            buffer.get(data)
+
+            // Calculate threshold once per frame
+            val threshold = when {
+                sensitivity >= 100 -> 1L
+                else -> {
+                    // Exponential curve: 200 * (0.005)^((sensitivity-1)/99)
+                    val normalizedSens = (sensitivity - 1) / 99.0
+                    (200.0 * Math.pow(0.005, normalizedSens)).toLong()
+                }
+            }
+
+            previousFrame?.let { prevFrame ->
+                if (data.size == prevFrame.size) {
+                    // Calculate frame difference by sampling ~1000 pixels
+                    var diff = 0L
+                    val step = maxOf(1, data.size / 1000)
+                    for (i in data.indices step step) {
+                        diff += abs(data[i].toInt() - prevFrame[i].toInt())
+                    }
+                    diff /= (data.size / step)
+
+                    // Broadcast current level
+                    onLevelUpdate(diff, threshold)
+
+                    if (diff > threshold) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastDetectionTime > DETECTION_COOLDOWN_MS) {
+                            Log.d(TAG, "Motion detected: diff=$diff, threshold=$threshold")
+                            lastDetectionTime = now
+                            onMotionDetected()
+                        }
+                    }
+                }
+            } ?: run {
+                // First frame - broadcast initial level with zero diff
+                if (isInitialFrame) {
+                    onLevelUpdate(0L, threshold)
+                    isInitialFrame = false
+                }
+            }
+
+            previousFrame = data
+        } catch (e: Exception) {
+            Log.e(TAG, "Error analyzing frame", e)
+        } finally {
             image.close()
-            return
         }
-
-        val buffer = image.planes[0].buffer
-        val data = ByteArray(buffer.remaining())
-        buffer.get(data)
-
-        previousFrame?.let { prevFrame ->
-            if (data.size == prevFrame.size) {
-                val diff = calculateDifference(data, prevFrame)
-
-                // FIXED: Real-world motion diffs are typically 0-200 (you saw max ~130)
-                // Exponential curve from 1 to 200 for better UX across full slider range
-                // sensitivity 1 = 200 (very insensitive), sensitivity 100 = 1 (very sensitive)
-                val threshold = when {
-                    sensitivity >= 100 -> 1L
-                    else -> {
-                        // Exponential curve: 200 * (0.005)^((sensitivity-1)/99)
-                        val normalizedSens = (sensitivity - 1) / 99.0
-                        (200.0 * Math.pow(0.005, normalizedSens)).toLong()
-                    }
-                }
-
-                // Broadcast current level
-                onLevelUpdate(diff, threshold)
-
-                if (diff > threshold) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastDetectionTime > DETECTION_COOLDOWN_MS) {
-                        Log.d(TAG, "Motion detected: diff=$diff, threshold=$threshold")
-                        lastDetectionTime = now
-                        onMotionDetected()
-                    }
-                }
-            }
-        } ?: run {
-            // FIX: First frame - broadcast initial level with zero diff
-            if (isInitialFrame) {
-                val threshold = when {
-                    sensitivity >= 100 -> 1L
-                    else -> {
-                        val normalizedSens = (sensitivity - 1) / 99.0
-                        (200.0 * Math.pow(0.005, normalizedSens)).toLong()
-                    }
-                }
-                onLevelUpdate(0L, threshold)
-                isInitialFrame = false
-            }
-        }
-
-        previousFrame = data
-        image.close()
-    }
-
-    private fun calculateDifference(current: ByteArray, previous: ByteArray): Long {
-        var diff = 0L
-        val step = maxOf(1, current.size / 1000) // Sample ~1000 pixels
-
-        for (i in current.indices step step) {
-            diff += abs(current[i].toInt() - previous[i].toInt())
-        }
-
-        return diff / (current.size / step)
     }
 
     companion object {
