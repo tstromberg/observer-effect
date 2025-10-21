@@ -4,9 +4,9 @@
 all:
 	./gradlew assembleDebug
 	@mkdir -p out
-	@cp app/build/outputs/apk/debug/app-debug.apk out/heisenberg-debug.apk
+	@cp app/build/outputs/apk/debug/app-debug.apk out/observer-effect-debug.apk
 	@echo "\nDebug APK built and copied to out/:"
-	@ls -lh out/heisenberg-debug.apk
+	@ls -lh out/observer-effect-debug.apk
 
 # Build release APK (signs with ~/android.jks or $ANDROID_KEYSTORE if present)
 release:
@@ -28,13 +28,13 @@ release:
 	./gradlew assembleRelease
 	@mkdir -p out
 	@if [ -f app/build/outputs/apk/release/app-release.apk ]; then \
-		cp app/build/outputs/apk/release/app-release.apk out/heisenberg-release.apk; \
+		cp app/build/outputs/apk/release/app-release.apk out/observer-effect-release.apk; \
 		echo "\nSigned release APK built and copied to out/:"; \
 	else \
-		cp app/build/outputs/apk/release/app-release-unsigned.apk out/heisenberg-release-unsigned.apk; \
+		cp app/build/outputs/apk/release/app-release-unsigned.apk out/observer-effect-release-unsigned.apk; \
 		echo "\nUnsigned release APK built and copied to out/:"; \
 	fi
-	@ls -lh out/heisenberg-release*.apk
+	@ls -lh out/observer-effect-release*.apk
 
 # Build and install debug APK via adb
 sideload:

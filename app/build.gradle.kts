@@ -53,7 +53,7 @@ android {
             )
             // Sign if keystore exists, otherwise build unsigned
             signingConfig =
-                if (rootProject.file("heisenberg.keystore").exists()) {
+                if (rootProject.file("observer-effect.keystore").exists()) {
                     signingConfigs.getByName("release")
                 } else {
                     null

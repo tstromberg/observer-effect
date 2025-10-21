@@ -42,8 +42,8 @@ These permissions are essential for the app to function properly.
 You are probably best off using Android Studio, but we have make targets too:
 
 ```bash
-make              # Build debug APK → out/heisenberg-debug.apk
-make release      # Build release APK → out/heisenberg-release.apk
+make              # Build debug APK → out/observer-effect-debug.apk
+make release      # Build release APK → out/observer-effect-release.apk
 make sideload     # Install via adb
 ```
 
