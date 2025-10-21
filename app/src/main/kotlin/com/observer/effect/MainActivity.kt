@@ -317,15 +317,10 @@ class MainActivity : AppCompatActivity() {
         // Register broadcast receiver for sensor updates
         val filter = IntentFilter(DetectionService.ACTION_SENSOR_UPDATE)
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(sensorUpdateReceiver, filter, RECEIVER_NOT_EXPORTED)
-                // FIX: Set flag IMMEDIATELY after successful registration
-                isReceiverRegistered = true
-            } else {
-                registerReceiver(sensorUpdateReceiver, filter)
-                // FIX: Set flag IMMEDIATELY after successful registration
-                isReceiverRegistered = true
-            }
+            // Use ContextCompat for compatibility with all API levels
+            ContextCompat.registerReceiver(this, sensorUpdateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            // FIX: Set flag IMMEDIATELY after successful registration
+            isReceiverRegistered = true
         } catch (e: Exception) {
             Log.e(TAG, "Error registering receiver", e)
             isReceiverRegistered = false
@@ -368,6 +363,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Hide black overlay when user is actively using the app
+        binding.blackOverlay?.visibility = View.GONE
+
         // Only notify service if it's actually running
         if (isServiceRunning()) {
             val intent =
@@ -381,14 +379,22 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        // Only notify service if it's actually running
+        // Show black overlay when app goes to background in monitoring mode
+        // Only show if a launch app is configured - otherwise user should see settings
         if (isServiceRunning()) {
+            val launchApp = prefs.getString(KEY_LAUNCH_APP, "") ?: ""
+            if (launchApp.isNotEmpty()) {
+                binding.blackOverlay?.visibility = View.VISIBLE
+                Log.i(TAG, "Activity paused, black overlay shown (launch app: $launchApp)")
+            } else {
+                Log.i(TAG, "Activity paused, no launch app configured, keeping UI visible")
+            }
+
             val intent =
                 Intent(this, DetectionService::class.java).apply {
                     action = DetectionService.ACTION_ACTIVITY_BACKGROUND
                 }
             ContextCompat.startForegroundService(this, intent)
-            Log.i(TAG, "Activity paused, notified service")
         }
     }
 

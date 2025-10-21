@@ -328,4 +328,16 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>
 
+<!-- Black overlay shown when app is in background monitoring mode -->
+<!-- This prevents flashing settings UI if MainActivity briefly appears during screen wake -->
+<View
+    android:id="@+id/blackOverlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000"
+    android:elevation="100dp"
+    android:visibility="gone"
+    android:clickable="true"
+    android:focusable="true" />
+
 </FrameLayout>

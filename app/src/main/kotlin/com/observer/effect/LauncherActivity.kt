@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.WindowManager
 
@@ -14,8 +16,19 @@ import android.view.WindowManager
  * This activity is launched from the DetectionService when motion/light is detected.
  */
 class LauncherActivity : Activity() {
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    private val timeoutRunnable =
+        Runnable {
+            Log.w(TAG, "Timeout reached, finishing LauncherActivity (target app may not have launched)")
+            finish()
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Safety timeout: finish after 5 seconds even if onStop() not called
+        // This prevents hanging if target app never comes to foreground
+        timeoutHandler.postDelayed(timeoutRunnable, FINISH_TIMEOUT_MS)
 
         val targetPackage = intent.getStringExtra(EXTRA_TARGET_PACKAGE)
         Log.i(TAG, "LauncherActivity started for package: $targetPackage (API ${Build.VERSION.SDK_INT})")
@@ -92,25 +105,42 @@ class LauncherActivity : Activity() {
                 Log.i(TAG, "Launching target app: $targetPackage with flags=${launchIntent.flags}")
                 startActivity(launchIntent)
                 Log.i(TAG, "Successfully launched target app: $targetPackage")
+                // Don't finish() here - wait for target app to come to foreground
+                // This prevents flashing home screen while slow apps (browsers) are initializing
+                // onStop() will finish when target app takes foreground
             } else {
                 Log.w(
                     TAG,
                     "No launch intent found for package: $targetPackage - app may not be installed or launchable",
                 )
+                finish()
             }
         } catch (e: SecurityException) {
             Log.e(TAG, "Security exception launching app $targetPackage - missing permissions?", e)
+            finish()
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error launching target app: $targetPackage", e)
-        } finally {
-            // Always finish this transparent activity
-            Log.d(TAG, "Finishing LauncherActivity")
             finish()
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Finish when target app comes to foreground (we go to background)
+        // This ensures smooth transition even for slow-drawing apps like browsers
+        Log.d(TAG, "LauncherActivity stopped (target app in foreground), finishing")
+        finish()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Cancel timeout to prevent memory leaks
+        timeoutHandler.removeCallbacks(timeoutRunnable)
     }
 
     companion object {
         private const val TAG = "LauncherActivity"
         const val EXTRA_TARGET_PACKAGE = "target_package"
+        private const val FINISH_TIMEOUT_MS = 5000L // 5 seconds safety timeout
     }
 }

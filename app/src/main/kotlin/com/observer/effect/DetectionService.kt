@@ -23,7 +23,6 @@ class DetectionService : Service(), LifecycleOwner {
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
     private lateinit var prefs: SharedPreferences
-    private lateinit var wakeLock: PowerManager.WakeLock
     private lateinit var powerManager: PowerManager
     private lateinit var keyguardManager: KeyguardManager
     private var cameraDetector: MotionDetector? = null
@@ -74,14 +73,6 @@ class DetectionService : Service(), LifecycleOwner {
 
         powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        // Note: These flags are deprecated in API 29+ but are the simplest way to wake the screen
-        // from a background service without showing UI. Modern alternatives require launching an Activity.
-        @Suppress("DEPRECATION")
-        wakeLock =
-            powerManager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                "ObserverEffect::WakeLock",
-            )
 
         // Register screen on/off receiver
         val screenFilter =
@@ -159,9 +150,6 @@ class DetectionService : Service(), LifecycleOwner {
 
         cameraDetector?.stop()
         lightDetector?.stop()
-        if (wakeLock.isHeld) {
-            wakeLock.release()
-        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -268,18 +256,7 @@ class DetectionService : Service(), LifecycleOwner {
                 return
             }
 
-            // Check if wake lock is already held to prevent double-wake
-            if (wakeLock.isHeld) {
-                Log.d(TAG, "Wake lock already held, skipping duplicate wake operation")
-                return
-            }
-
             Log.i(TAG, "Motion/light detected - initiating screen wake sequence")
-
-            // CRITICAL FIX: Use acquire with timeout, don't release immediately
-            // The timeout will auto-release after WAKE_DURATION_MS
-            wakeLock.acquire(WAKE_DURATION_MS)
-            Log.d(TAG, "Wake lock acquired for ${WAKE_DURATION_MS}ms")
 
             // Play notification sound if configured
             val notificationSoundUri = prefs.getString(MainActivity.KEY_NOTIFICATION_SOUND, "") ?: ""
@@ -302,7 +279,8 @@ class DetectionService : Service(), LifecycleOwner {
                 Log.d(TAG, "No notification sound configured")
             }
 
-            // Launch app if configured
+            // Launch app if configured (LauncherActivity will wake the screen)
+            // If no app configured, we still need to wake the screen for notification sound
             val launchApp = prefs.getString(MainActivity.KEY_LAUNCH_APP, "") ?: ""
             if (launchApp.isNotEmpty()) {
                 try {
@@ -311,25 +289,35 @@ class DetectionService : Service(), LifecycleOwner {
                         "Initiating app launch: package=$launchApp, keyguardLocked=${keyguardManager.isKeyguardLocked}",
                     )
 
-                    // Use our transparent LauncherActivity to properly dismiss keyguard
-                    // and then launch the target app
+                    // Use our transparent LauncherActivity to wake screen, dismiss keyguard,
+                    // and launch the target app. Screen wake happens in LauncherActivity.
                     val launcherIntent =
                         Intent(this, LauncherActivity::class.java).apply {
                             putExtra(LauncherActivity.EXTRA_TARGET_PACKAGE, launchApp)
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                     startActivity(launcherIntent)
-                    Log.i(TAG, "LauncherActivity started successfully")
+                    Log.i(TAG, "LauncherActivity started successfully - screen wake delegated to activity")
                 } catch (e: SecurityException) {
                     Log.e(TAG, "Security exception starting LauncherActivity - missing permissions?", e)
                 } catch (e: Exception) {
                     Log.e(TAG, "Unexpected error starting LauncherActivity for app: $launchApp", e)
                 }
             } else {
-                Log.d(TAG, "No launch app configured")
+                // No app to launch, but still wake screen if notification sound was played
+                // Launch LauncherActivity without a target package - it will just wake screen and finish
+                Log.d(TAG, "No launch app configured, waking screen only")
+                try {
+                    val launcherIntent =
+                        Intent(this, LauncherActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    startActivity(launcherIntent)
+                    Log.i(TAG, "LauncherActivity started for screen wake only")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error starting LauncherActivity for screen wake", e)
+                }
             }
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception during screen wake - missing WAKE_LOCK permission?", e)
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error during screen wake sequence", e)
         }
@@ -354,7 +342,6 @@ class DetectionService : Service(), LifecycleOwner {
         private const val TAG = "DetectionService"
         private const val CHANNEL_ID = "detection_service"
         private const val NOTIFICATION_ID = 1
-        private const val WAKE_DURATION_MS = 100L
         const val ACTION_SENSOR_UPDATE = "com.observer.effect.SENSOR_UPDATE"
         const val ACTION_ACTIVITY_FOREGROUND = "com.observer.effect.ACTIVITY_FOREGROUND"
         const val ACTION_ACTIVITY_BACKGROUND = "com.observer.effect.ACTIVITY_BACKGROUND"
