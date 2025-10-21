@@ -227,9 +227,9 @@ class MotionDetector(
 
             previousFrame?.let { prevFrame ->
                 if (data.size == prevFrame.size) {
-                    // Calculate frame difference by sampling ~1000 pixels
+                    // Calculate frame difference by sampling 10% of pixels (~7680 pixels at 320x240)
                     var diff = 0L
-                    val step = maxOf(1, data.size / 1000)
+                    val step = 10
                     for (i in data.indices step step) {
                         diff += abs(data[i].toInt() - prevFrame[i].toInt())
                     }
