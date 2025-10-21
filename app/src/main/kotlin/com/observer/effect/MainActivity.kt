@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
     private var isReceiverRegistered = false
+    private var isPackageReceiverRegistered = false
     private var isCameraActive = false
     private var isLightActive = false
 
@@ -43,6 +44,26 @@ class MainActivity : AppCompatActivity() {
                     val threshold = intent.getFloatExtra(DetectionService.EXTRA_THRESHOLD, 0f)
                     runOnUiThread {
                         updateLiveReading(sensorType, currentLevel, threshold)
+                    }
+                }
+            }
+        }
+
+    private val packageChangeReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(
+                context: Context?,
+                intent: Intent?,
+            ) {
+                when (intent?.action) {
+                    Intent.ACTION_PACKAGE_ADDED,
+                    Intent.ACTION_PACKAGE_REMOVED,
+                    Intent.ACTION_PACKAGE_REPLACED,
+                    -> {
+                        Log.i(TAG, "Package change detected: ${intent.action}")
+                        runOnUiThread {
+                            refreshAppList()
+                        }
                     }
                 }
             }
@@ -88,7 +109,6 @@ class MainActivity : AppCompatActivity() {
         val cameraSensitivity = prefs.getInt(KEY_CAMERA_SENSITIVITY, 0)
         val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
         val startAtBoot = prefs.getBoolean(KEY_START_AT_BOOT, false)
-        val launchApp = prefs.getString(KEY_LAUNCH_APP, "") ?: ""
         val preloadApp = prefs.getBoolean(KEY_PRELOAD_APP, false)
         val notificationSound = prefs.getString(KEY_NOTIFICATION_SOUND, "") ?: ""
 
@@ -210,37 +230,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             // Setup launch app spinner
-            val installedApps = getLaunchableApps()
-            val appNames = mutableListOf(getString(R.string.launch_app_none))
-            val appPackages = mutableListOf("")
-            installedApps.forEach { appInfo ->
-                appNames.add(appInfo.loadLabel(packageManager).toString())
-                appPackages.add(appInfo.packageName)
-            }
-
-            val appAdapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, appNames)
-            appAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            launchAppSpinner?.adapter = appAdapter
-
-            // Set current selection
-            val currentIndex = appPackages.indexOf(launchApp).coerceAtLeast(0)
-            launchAppSpinner?.setSelection(currentIndex)
-
-            launchAppSpinner?.onItemSelectedListener =
-                object : AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(
-                        parent: AdapterView<*>?,
-                        view: View?,
-                        position: Int,
-                        id: Long,
-                    ) {
-                        val selectedPackage = appPackages[position]
-                        prefs.edit().putString(KEY_LAUNCH_APP, selectedPackage).apply()
-                        Log.i(TAG, "Launch app set to $selectedPackage")
-                    }
-
-                    override fun onNothingSelected(parent: AdapterView<*>?) {}
-                }
+            refreshAppList()
 
             // Setup preload app checkbox
             preloadAppCheckbox?.isChecked = preloadApp
@@ -343,6 +333,23 @@ class MainActivity : AppCompatActivity() {
             Log.e(TAG, "Error registering receiver", e)
             isReceiverRegistered = false
         }
+
+        // Register broadcast receiver for package changes
+        val packageFilter =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addAction(Intent.ACTION_PACKAGE_REPLACED)
+                addDataScheme("package")
+            }
+        try {
+            ContextCompat.registerReceiver(this, packageChangeReceiver, packageFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            isPackageReceiverRegistered = true
+            Log.i(TAG, "Package change receiver registered")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registering package change receiver", e)
+            isPackageReceiverRegistered = false
+        }
     }
 
     private fun updateCameraSensitivityVisibility(cameraSelection: Int) {
@@ -430,7 +437,16 @@ class MainActivity : AppCompatActivity() {
                 unregisterReceiver(sensorUpdateReceiver)
                 isReceiverRegistered = false
             } catch (e: IllegalArgumentException) {
-                Log.w(TAG, "Receiver not registered or already unregistered")
+                Log.w(TAG, "Sensor receiver not registered or already unregistered")
+            }
+        }
+        if (isPackageReceiverRegistered) {
+            try {
+                unregisterReceiver(packageChangeReceiver)
+                isPackageReceiverRegistered = false
+                Log.i(TAG, "Package change receiver unregistered")
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "Package receiver not registered or already unregistered")
             }
         }
     }
@@ -517,6 +533,48 @@ class MainActivity : AppCompatActivity() {
             // Formula: sensitivity * 0.05
             (sensitivity * 0.05f).coerceIn(0.05f, 5f)
         }
+    }
+
+    private fun refreshAppList() {
+        val launchApp = prefs.getString(KEY_LAUNCH_APP, "") ?: ""
+        val installedApps = getLaunchableApps()
+        val appNames = mutableListOf(getString(R.string.launch_app_none))
+        val appPackages = mutableListOf("")
+
+        installedApps.forEach { appInfo ->
+            appNames.add(appInfo.loadLabel(packageManager).toString())
+            appPackages.add(appInfo.packageName)
+        }
+
+        val appAdapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, appNames)
+        appAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.launchAppSpinner?.adapter = appAdapter
+
+        // Preserve current selection if the app still exists, otherwise reset to "None"
+        val currentIndex = appPackages.indexOf(launchApp).coerceAtLeast(0)
+        binding.launchAppSpinner?.setSelection(currentIndex)
+
+        // If the previously selected app was uninstalled, save "None" as the new selection
+        if (launchApp.isNotEmpty() && currentIndex == 0) {
+            prefs.edit().putString(KEY_LAUNCH_APP, "").apply()
+            Log.i(TAG, "Previously selected app was uninstalled, reset to None")
+        }
+
+        binding.launchAppSpinner?.onItemSelectedListener =
+            object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: AdapterView<*>?,
+                    view: View?,
+                    position: Int,
+                    id: Long,
+                ) {
+                    val selectedPackage = appPackages[position]
+                    prefs.edit().putString(KEY_LAUNCH_APP, selectedPackage).apply()
+                    Log.i(TAG, "Launch app set to $selectedPackage")
+                }
+
+                override fun onNothingSelected(parent: AdapterView<*>?) {}
+            }
     }
 
     private fun getLaunchableApps(): List<ApplicationInfo> {
