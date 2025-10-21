@@ -10,7 +10,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import androidx.camera.core.CameraSelector
@@ -29,6 +31,15 @@ class DetectionService : Service(), LifecycleOwner {
     private var currentCameraSelection: Int = MainActivity.CAMERA_NONE
     private var lightDetector: LightDetector? = null
     private var isScreenOffReceiverRegistered = false
+
+    // Cooldown mechanism to prevent rapid re-triggers
+    private val cooldownHandler = Handler(Looper.getMainLooper())
+    private val resumeDetectionRunnable =
+        Runnable {
+            Log.i(TAG, "Cooldown period ended, resuming detection")
+            resumeDetection()
+        }
+    private var lastWakeTime = 0L
 
     private val prefsListener =
         SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -52,10 +63,17 @@ class DetectionService : Service(), LifecycleOwner {
                     Intent.ACTION_SCREEN_OFF -> {
                         Log.i(TAG, "Screen turned off, resuming detection")
                         resumeDetection()
+
+                        // Preload app in background for faster startup if configured
+                        val preloadEnabled = prefs.getBoolean(MainActivity.KEY_PRELOAD_APP, false)
+                        val launchApp = prefs.getString(MainActivity.KEY_LAUNCH_APP, "") ?: ""
+                        if (preloadEnabled && launchApp.isNotEmpty()) {
+                            preloadApp(launchApp)
+                        }
                     }
                     Intent.ACTION_SCREEN_ON -> {
-                        Log.i(TAG, "Screen turned on, pausing detection")
-                        pauseDetection()
+                        Log.i(TAG, "Screen turned on")
+                        // Don't pause here - cooldown mechanism handles this
                     }
                 }
             }
@@ -148,11 +166,47 @@ class DetectionService : Service(), LifecycleOwner {
             }
         }
 
+        // Cancel cooldown timer
+        cooldownHandler.removeCallbacks(resumeDetectionRunnable)
+
         cameraDetector?.stop()
         lightDetector?.stop()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        Log.w(TAG, "Low memory warning - temporarily pausing detection")
+        // Pause detection to free up memory
+        pauseDetection()
+        // Resume after 5 seconds to give system time to recover
+        cooldownHandler.postDelayed({
+            Log.i(TAG, "Resuming detection after low memory recovery")
+            resumeDetection()
+        }, 5000L)
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        when (level) {
+            TRIM_MEMORY_RUNNING_CRITICAL,
+            TRIM_MEMORY_RUNNING_LOW,
+            -> {
+                Log.w(TAG, "Memory pressure (level=$level) - pausing detection temporarily")
+                pauseDetection()
+                // Resume after brief pause to give system time to recover
+                cooldownHandler.postDelayed({
+                    Log.i(TAG, "Resuming detection after memory pressure recovery (level=$level)")
+                    resumeDetection()
+                }, 3000L)
+            }
+            TRIM_MEMORY_UI_HIDDEN -> {
+                // App UI is hidden, good time to clean up if needed
+                Log.d(TAG, "UI hidden - system may reclaim memory")
+            }
+        }
+    }
 
     private fun updateDetectors() {
         val cameraSelection = prefs.getInt(MainActivity.KEY_CAMERA_SELECTION, MainActivity.CAMERA_NONE)
@@ -256,7 +310,23 @@ class DetectionService : Service(), LifecycleOwner {
                 return
             }
 
+            // Check cooldown period to prevent rapid re-triggers
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastWakeTime < COOLDOWN_PERIOD_MS) {
+                Log.d(TAG, "Still in cooldown period, skipping wake (${currentTime - lastWakeTime}ms since last wake)")
+                return
+            }
+            lastWakeTime = currentTime
+
             Log.i(TAG, "Motion/light detected - initiating screen wake sequence")
+
+            // Pause detection temporarily to prevent immediate re-trigger
+            pauseDetection()
+
+            // Schedule detection to resume after cooldown period
+            // This allows detection to work again even if screen stays on
+            cooldownHandler.removeCallbacks(resumeDetectionRunnable)
+            cooldownHandler.postDelayed(resumeDetectionRunnable, COOLDOWN_PERIOD_MS)
 
             // Play notification sound if configured
             val notificationSoundUri = prefs.getString(MainActivity.KEY_NOTIFICATION_SOUND, "") ?: ""
@@ -323,6 +393,32 @@ class DetectionService : Service(), LifecycleOwner {
         }
     }
 
+    private fun preloadApp(targetPackage: String) {
+        try {
+            Log.i(TAG, "Preloading app in background: $targetPackage")
+            val launchIntent = packageManager.getLaunchIntentForPackage(targetPackage)
+            if (launchIntent != null) {
+                // Launch app in background without bringing to foreground
+                // The app will start but stay in background, warm and ready
+                // When motion is detected, REORDER_TO_FRONT will bring it forward instantly
+                // NO_ANIMATION: Skip all animations for instant background loading
+                launchIntent.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_MULTIPLE_TASK or
+                        Intent.FLAG_ACTIVITY_NO_ANIMATION,
+                )
+                startActivity(launchIntent)
+                Log.i(TAG, "App preloaded successfully: $targetPackage")
+            } else {
+                Log.w(TAG, "No launch intent found for preload: $targetPackage")
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception preloading app: $targetPackage", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error preloading app: $targetPackage", e)
+        }
+    }
+
     private fun broadcastSensorUpdate(
         sensorType: String,
         currentLevel: Float,
@@ -342,6 +438,7 @@ class DetectionService : Service(), LifecycleOwner {
         private const val TAG = "DetectionService"
         private const val CHANNEL_ID = "detection_service"
         private const val NOTIFICATION_ID = 1
+        private const val COOLDOWN_PERIOD_MS = 3000L // 3 seconds cooldown between triggers
         const val ACTION_SENSOR_UPDATE = "com.observer.effect.SENSOR_UPDATE"
         const val ACTION_ACTIVITY_FOREGROUND = "com.observer.effect.ACTIVITY_FOREGROUND"
         const val ACTION_ACTIVITY_BACKGROUND = "com.observer.effect.ACTIVITY_BACKGROUND"

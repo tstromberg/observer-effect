@@ -41,7 +41,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="@string/app_title"
-            android:textSize="48sp"
+            android:textSize="38sp"
             android:textStyle="bold"
             android:textColor="?attr/colorPrimary"
             android:layout_marginBottom="8dp"
@@ -64,12 +64,27 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="@string/app_subtitle"
-            android:textSize="16sp"
+            android:textSize="13sp"
             android:textColor="?android:attr/textColorSecondary"
-            android:layout_marginBottom="0dp"
+            android:layout_marginBottom="4dp"
             android:gravity="center"
             android:fontFamily="sans-serif"
             app:layout_constraintTop_toBottomOf="@id/appTitle"
+            app:layout_constraintStart_toStartOf="@id/guidelineStart"
+            app:layout_constraintEnd_toEndOf="@id/guidelineEnd" />
+
+        <!-- Build Type Indicator -->
+        <TextView
+            android:id="@+id/buildTypeIndicator"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="11sp"
+            android:textColor="?android:attr/textColorTertiary"
+            android:layout_marginBottom="0dp"
+            android:gravity="center"
+            android:fontFamily="monospace"
+            app:layout_constraintTop_toBottomOf="@id/appSubtitle"
             app:layout_constraintStart_toStartOf="@id/guidelineStart"
             app:layout_constraintEnd_toEndOf="@id/guidelineEnd" />
 
@@ -93,7 +108,7 @@
             app:contentPadding="24dp"
             app:strokeWidth="0dp"
             app:cardBackgroundColor="@color/card_motion"
-            app:layout_constraintTop_toBottomOf="@id/appSubtitle"
+            app:layout_constraintTop_toBottomOf="@id/buildTypeIndicator"
             app:layout_constraintStart_toStartOf="@id/guidelineStart"
             app:layout_constraintEnd_toEndOf="@id/guidelineCenter">
 
@@ -193,7 +208,7 @@
             app:contentPadding="24dp"
             app:strokeWidth="0dp"
             app:cardBackgroundColor="@color/card_light"
-            app:layout_constraintTop_toBottomOf="@id/appSubtitle"
+            app:layout_constraintTop_toBottomOf="@id/buildTypeIndicator"
             app:layout_constraintStart_toStartOf="@id/guidelineCenter"
             app:layout_constraintEnd_toEndOf="@id/guidelineEnd">
 
@@ -315,6 +330,17 @@
                     android:minHeight="48dp"
                     android:layout_marginBottom="16dp"
                     android:contentDescription="@string/launch_app" />
+
+                <CheckBox
+                    android:id="@+id/preloadAppCheckbox"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:text="@string/preload_app"
+                    android:textSize="16sp"
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:contentDescription="@string/preload_app"
+                    android:layout_marginBottom="16dp" />
 
                 <TextView
                     android:layout_width="wrap_content"

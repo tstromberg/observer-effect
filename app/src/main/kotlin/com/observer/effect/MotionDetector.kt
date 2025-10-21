@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -25,11 +27,15 @@ class MotionDetector(
     private var imageAnalysis: ImageAnalysis? = null
     private var executor: java.util.concurrent.ExecutorService? = null
     private var previousFrame: ByteArray? = null
+    private var currentFrameBuffer: ByteArray? = null
     private var lastDetectionTime = 0L
+    private var lastFrameProcessedTime = 0L
     private var isInitialFrame = true
     private var isPaused = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun start() {
+        Log.d(TAG, "start() called, isPaused=$isPaused")
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -40,13 +46,22 @@ class MotionDetector(
         // Create executor if not already exists
         if (executor == null) {
             executor = Executors.newSingleThreadExecutor()
+            Log.d(TAG, "Created new executor")
         }
 
+        Log.d(TAG, "Getting camera provider instance...")
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             try {
                 cameraProvider = cameraProviderFuture.get()
-                bindCamera()
+                Log.d(TAG, "Camera provider loaded, isPaused=$isPaused")
+                // Only bind if not paused - detection might have been paused while camera provider was loading
+                if (!isPaused) {
+                    Log.d(TAG, "Not paused, calling bindCamera()")
+                    bindCamera()
+                } else {
+                    Log.d(TAG, "Paused, skipping bindCamera()")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error starting camera", e)
             }
@@ -58,6 +73,7 @@ class MotionDetector(
         cameraProvider = null
         imageAnalysis = null
         previousFrame = null
+        currentFrameBuffer = null
         isInitialFrame = true
         isPaused = false
         // CRITICAL FIX: Shutdown executor to prevent thread leak
@@ -66,18 +82,30 @@ class MotionDetector(
     }
 
     fun pause() {
+        Log.d(TAG, "pause() called, isPaused=$isPaused")
         if (!isPaused) {
             isPaused = true
-            cameraProvider?.unbindAll()
-            Log.i(TAG, "Camera detection paused")
+            // CameraX unbindAll must run on main thread
+            mainHandler.post {
+                cameraProvider?.unbindAll()
+                Log.i(TAG, "Camera detection paused")
+            }
+            // Reset frame state when pausing
+            previousFrame = null
+            isInitialFrame = true
+        } else {
+            Log.d(TAG, "Already paused, ignoring")
         }
     }
 
     fun resume() {
+        Log.d(TAG, "resume() called, isPaused=$isPaused, cameraProvider=${cameraProvider != null}")
         if (isPaused) {
             isPaused = false
             bindCamera()
             Log.i(TAG, "Camera detection resumed")
+        } else {
+            Log.d(TAG, "Already resumed, ignoring")
         }
     }
 
@@ -86,8 +114,15 @@ class MotionDetector(
     }
 
     private fun bindCamera() {
-        val cameraProvider = cameraProvider ?: return
-        val executor = executor ?: return
+        Log.d(TAG, "bindCamera() called, cameraProvider=${cameraProvider != null}, executor=${executor != null}, isPaused=$isPaused")
+        val cameraProvider = cameraProvider ?: run {
+            Log.w(TAG, "bindCamera: cameraProvider is null, returning")
+            return
+        }
+        val executor = executor ?: run {
+            Log.w(TAG, "bindCamera: executor is null, returning")
+            return
+        }
 
         // FIX: Check if camera is available before binding
         if (!cameraProvider.hasCamera(cameraSelector)) {
@@ -95,6 +130,7 @@ class MotionDetector(
             return
         }
 
+        Log.d(TAG, "Creating ImageAnalysis and binding to lifecycle...")
         imageAnalysis =
             ImageAnalysis.Builder()
                 .setResolutionSelector(
@@ -112,6 +148,7 @@ class MotionDetector(
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
+                    Log.d(TAG, "Setting analyzer on ImageAnalysis")
                     it.setAnalyzer(executor, ::analyzeFrame)
                 }
 
@@ -131,13 +168,31 @@ class MotionDetector(
 
     private fun analyzeFrame(image: ImageProxy) {
         try {
+            // Throttle frame processing to ~5 FPS to reduce CPU usage on low-end devices
+            // Motion detection doesn't need high frame rates
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastFrameProcessedTime < FRAME_THROTTLE_MS) {
+                image.close()
+                return
+            }
+            lastFrameProcessedTime = currentTime
+            Log.v(TAG, "analyzeFrame: processing frame at $currentTime")
+
             if (image.format != ImageFormat.YUV_420_888) {
                 image.close()
                 return
             }
 
             val buffer = image.planes[0].buffer
-            val data = ByteArray(buffer.remaining())
+            val bufferSize = buffer.remaining()
+
+            // Reuse buffer instead of allocating new ByteArray every frame
+            // This saves ~1.5 MB/sec of allocations (300KB * 5 FPS)
+            if (currentFrameBuffer == null || currentFrameBuffer!!.size != bufferSize) {
+                currentFrameBuffer = ByteArray(bufferSize)
+            }
+            val data = currentFrameBuffer!!
+            buffer.rewind()
             buffer.get(data)
 
             // Calculate threshold once per frame
@@ -161,6 +216,7 @@ class MotionDetector(
                     diff /= (data.size / step)
 
                     // Broadcast current level
+                    Log.v(TAG, "Calling onLevelUpdate(diff=$diff, threshold=$threshold)")
                     onLevelUpdate(diff, threshold)
 
                     if (diff > threshold) {
@@ -180,7 +236,8 @@ class MotionDetector(
                 }
             }
 
-            previousFrame = data
+            // Make a copy so we don't overwrite previousFrame when reusing currentFrameBuffer
+            previousFrame = data.copyOf()
         } catch (e: Exception) {
             Log.e(TAG, "Error analyzing frame", e)
         } finally {
@@ -190,6 +247,7 @@ class MotionDetector(
 
     companion object {
         private const val TAG = "MotionDetector"
-        private const val DETECTION_COOLDOWN_MS = 2000L
+        private const val DETECTION_COOLDOWN_MS = 2000L // Minimum time between detections
+        private const val FRAME_THROTTLE_MS = 200L // ~5 FPS (1000ms / 5 = 200ms)
     }
 }

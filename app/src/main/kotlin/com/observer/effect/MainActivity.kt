@@ -65,6 +65,16 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
+        // Immediately show black overlay if service is running and app is configured
+        // This prevents white flash if MainActivity briefly appears during screen wake
+        if (isServiceRunning()) {
+            val launchApp = prefs.getString(KEY_LAUNCH_APP, "") ?: ""
+            if (launchApp.isNotEmpty()) {
+                binding.blackOverlay?.visibility = View.VISIBLE
+                Log.d(TAG, "onCreate: Service running with launch app, showing black overlay")
+            }
+        }
+
         // On first run, detect and save defaults (but keep sensitivity at 0 for safety)
         val isFirstRun = !prefs.contains(KEY_CAMERA_SELECTION)
         if (isFirstRun) {
@@ -79,9 +89,14 @@ class MainActivity : AppCompatActivity() {
         val lightSensitivity = prefs.getInt(KEY_LIGHT_SENSITIVITY, 0)
         val startAtBoot = prefs.getBoolean(KEY_START_AT_BOOT, false)
         val launchApp = prefs.getString(KEY_LAUNCH_APP, "") ?: ""
+        val preloadApp = prefs.getBoolean(KEY_PRELOAD_APP, false)
         val notificationSound = prefs.getString(KEY_NOTIFICATION_SOUND, "") ?: ""
 
         with(binding) {
+            // Set build type indicator
+            val isDebug = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            buildTypeIndicator?.text = if (isDebug) "[D]" else "[R]"
+
             // Setup camera spinner
             val cameraOptions =
                 arrayOf(
@@ -230,6 +245,13 @@ class MainActivity : AppCompatActivity() {
 
                     override fun onNothingSelected(parent: AdapterView<*>?) {}
                 }
+
+            // Setup preload app checkbox
+            preloadAppCheckbox?.isChecked = preloadApp
+            preloadAppCheckbox?.setOnCheckedChangeListener { _, isChecked ->
+                prefs.edit().putBoolean(KEY_PRELOAD_APP, isChecked).apply()
+                Log.i(TAG, "Preload app set to $isChecked")
+            }
 
             // Setup notification sound spinner
             val notificationSounds = getNotificationSounds()
@@ -450,6 +472,7 @@ class MainActivity : AppCompatActivity() {
                     val levelPercent = ((currentLevel / CAMERA_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
                     val thresholdPercent = ((threshold / CAMERA_MAX_LEVEL) * 100f).coerceIn(0f, 100f).toInt()
                     binding.cameraLiveReading?.text = "$emoji Current activity level: $levelPercent%"
+                    binding.cameraLiveReading?.visibility = View.VISIBLE
                     // Also update the slider value display with threshold
                     binding.cameraValue?.text = "$thresholdPercent%"
                 }
@@ -540,6 +563,7 @@ class MainActivity : AppCompatActivity() {
         const val KEY_START_AT_BOOT = "start_at_boot"
         const val KEY_BYPASS_LOCK_SCREEN = "bypass_lock_screen"
         const val KEY_LAUNCH_APP = "launch_app"
+        const val KEY_PRELOAD_APP = "preload_app"
         const val KEY_NOTIFICATION_SOUND = "notification_sound"
 
         const val CAMERA_NONE = 0

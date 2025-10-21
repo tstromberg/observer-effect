@@ -32,6 +32,7 @@
     <string name="unlock_screen">Dismiss lock screen (swipe only)</string>
     <string name="launch_app">Launch app</string>
     <string name="launch_app_none">None</string>
+    <string name="preload_app">Preload app for faster startup</string>
     <string name="notification_sound">Notification sound</string>
     <string name="notification_sound_none">None</string>
     <string name="disable_battery_optimization">Disable battery optimization</string>

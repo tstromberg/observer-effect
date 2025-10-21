@@ -37,7 +37,7 @@ release:
 	@ls -lh out/observer-effect-release*.apk
 
 # Build and install debug APK via adb
-sideload:
+sideload: all
 	./gradlew installDebug
 
 # Clean build artifacts

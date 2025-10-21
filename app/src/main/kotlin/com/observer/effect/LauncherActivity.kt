@@ -26,7 +26,10 @@ class LauncherActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Safety timeout: finish after 5 seconds even if onStop() not called
+        // Disable activity transitions for instant appearance
+        overridePendingTransition(0, 0)
+
+        // Safety timeout: finish after timeout period if onStop() not called
         // This prevents hanging if target app never comes to foreground
         timeoutHandler.postDelayed(timeoutRunnable, FINISH_TIMEOUT_MS)
 
@@ -98,9 +101,13 @@ class LauncherActivity : Activity() {
                 // Launch the target app and bring it to foreground
                 // NEW_TASK: Required to start in its own task
                 // RESET_TASK_IF_NEEDED: Brings the task to foreground in proper state
+                // REORDER_TO_FRONT: If already running, bring existing task forward (faster)
+                // NO_ANIMATION: Skip animations for instant appearance
                 launchIntent.addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED,
+                        Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_NO_ANIMATION,
                 )
                 Log.i(TAG, "Launching target app: $targetPackage with flags=${launchIntent.flags}")
                 startActivity(launchIntent)
@@ -130,17 +137,21 @@ class LauncherActivity : Activity() {
         // This ensures smooth transition even for slow-drawing apps like browsers
         Log.d(TAG, "LauncherActivity stopped (target app in foreground), finishing")
         finish()
+        // Disable exit animation for instant disappearance
+        overridePendingTransition(0, 0)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         // Cancel timeout to prevent memory leaks
         timeoutHandler.removeCallbacks(timeoutRunnable)
+        // Ensure no exit animation
+        overridePendingTransition(0, 0)
     }
 
     companion object {
         private const val TAG = "LauncherActivity"
         const val EXTRA_TARGET_PACKAGE = "target_package"
-        private const val FINISH_TIMEOUT_MS = 5000L // 5 seconds safety timeout
+        private const val FINISH_TIMEOUT_MS = 10000L // 10 seconds for slow apps like browsers
     }
 }
