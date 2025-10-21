@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.graphics.ImageFormat
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -33,6 +34,10 @@ class MotionDetector(
     private var isInitialFrame = true
     private var isPaused = false
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var watchdogHandler: Handler? = null
+    private var watchdogRunnable: Runnable? = null
+    private var consecutiveRestarts = 0
+    private var wakeLock: PowerManager.WakeLock? = null
 
     fun start() {
         Log.d(TAG, "start() called, isPaused=$isPaused")
@@ -43,11 +48,17 @@ class MotionDetector(
             return
         }
 
+        // Acquire wake lock to prevent camera hardware from sleeping
+        acquireWakeLock()
+
         // Create executor if not already exists
         if (executor == null) {
             executor = Executors.newSingleThreadExecutor()
             Log.d(TAG, "Created new executor")
         }
+
+        // Start watchdog to monitor camera health
+        startWatchdog()
 
         Log.d(TAG, "Getting camera provider instance...")
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -64,11 +75,15 @@ class MotionDetector(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error starting camera", e)
+                // Schedule retry if camera fails to start
+                scheduleRestart()
             }
         }, ContextCompat.getMainExecutor(context))
     }
 
     fun stop() {
+        stopWatchdog()
+        releaseWakeLock()
         cameraProvider?.unbindAll()
         cameraProvider = null
         imageAnalysis = null
@@ -76,6 +91,7 @@ class MotionDetector(
         currentFrameBuffer = null
         isInitialFrame = true
         isPaused = false
+        consecutiveRestarts = 0
         // CRITICAL FIX: Shutdown executor to prevent thread leak
         executor?.shutdown()
         executor = null
@@ -161,8 +177,12 @@ class MotionDetector(
             )
             val cameraType = if (cameraSelector == CameraSelector.DEFAULT_BACK_CAMERA) "rear" else "front"
             Log.i(TAG, "Camera bound successfully ($cameraType)")
+            // Reset restart counter on successful bind
+            consecutiveRestarts = 0
         } catch (e: Exception) {
-            Log.e(TAG, "Error binding camera", e)
+            Log.e(TAG, "Error binding camera: ${e.message}", e)
+            // Schedule restart on bind failure
+            scheduleRestart()
         }
     }
 
@@ -245,9 +265,139 @@ class MotionDetector(
         }
     }
 
+    private fun startWatchdog() {
+        if (watchdogHandler == null) {
+            watchdogHandler = Handler(Looper.getMainLooper())
+        }
+
+        watchdogRunnable = Runnable {
+            checkCameraHealth()
+        }
+
+        // Check camera health every 10 seconds
+        watchdogHandler?.postDelayed(watchdogRunnable!!, WATCHDOG_CHECK_INTERVAL_MS)
+        Log.d(TAG, "Watchdog started")
+    }
+
+    private fun stopWatchdog() {
+        watchdogRunnable?.let {
+            watchdogHandler?.removeCallbacks(it)
+        }
+        watchdogRunnable = null
+        Log.d(TAG, "Watchdog stopped")
+    }
+
+    private fun checkCameraHealth() {
+        if (isPaused) {
+            // Don't check health when paused, just reschedule
+            watchdogHandler?.postDelayed(watchdogRunnable!!, WATCHDOG_CHECK_INTERVAL_MS)
+            return
+        }
+
+        val timeSinceLastFrame = System.currentTimeMillis() - lastFrameProcessedTime
+
+        if (lastFrameProcessedTime > 0 && timeSinceLastFrame > FRAME_TIMEOUT_MS) {
+            Log.w(
+                TAG,
+                "Camera appears stuck - no frames for ${timeSinceLastFrame}ms (threshold: ${FRAME_TIMEOUT_MS}ms). Restarting camera...",
+            )
+            restartCamera()
+        } else {
+            Log.v(TAG, "Camera health check OK (${timeSinceLastFrame}ms since last frame)")
+        }
+
+        // Reschedule next check
+        watchdogRunnable?.let {
+            watchdogHandler?.postDelayed(it, WATCHDOG_CHECK_INTERVAL_MS)
+        }
+    }
+
+    private fun scheduleRestart() {
+        Log.w(TAG, "Scheduling camera restart (attempt ${consecutiveRestarts + 1})")
+        mainHandler.postDelayed({
+            restartCamera()
+        }, RESTART_DELAY_MS)
+    }
+
+    private fun restartCamera() {
+        consecutiveRestarts++
+
+        if (consecutiveRestarts > MAX_RESTART_ATTEMPTS) {
+            Log.e(
+                TAG,
+                "Camera restart failed after $MAX_RESTART_ATTEMPTS attempts. Giving up to prevent battery drain.",
+            )
+            consecutiveRestarts = 0
+            return
+        }
+
+        Log.i(TAG, "Restarting camera (attempt $consecutiveRestarts/$MAX_RESTART_ATTEMPTS)")
+
+        try {
+            // Unbind everything
+            mainHandler.post {
+                cameraProvider?.unbindAll()
+            }
+
+            // Reset state
+            imageAnalysis = null
+            previousFrame = null
+            currentFrameBuffer = null
+            isInitialFrame = true
+            lastFrameProcessedTime = 0L
+
+            // Wait a bit, then rebind
+            mainHandler.postDelayed({
+                if (!isPaused) {
+                    Log.d(TAG, "Rebinding camera after restart")
+                    bindCamera()
+                    // Reset counter on successful restart
+                    consecutiveRestarts = 0
+                } else {
+                    Log.d(TAG, "Skipping camera rebind - currently paused")
+                }
+            }, 1000L)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during camera restart", e)
+            // Try again after delay
+            if (consecutiveRestarts <= MAX_RESTART_ATTEMPTS) {
+                scheduleRestart()
+            }
+        }
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock =
+                powerManager.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK,
+                    "ObserverEffect:MotionDetectorWakeLock",
+                )
+            wakeLock?.setReferenceCounted(false)
+        }
+
+        if (wakeLock?.isHeld == false) {
+            wakeLock?.acquire()
+            Log.i(TAG, "Wake lock acquired to keep camera hardware active")
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+            Log.i(TAG, "Wake lock released")
+        }
+        wakeLock = null
+    }
+
     companion object {
         private const val TAG = "MotionDetector"
         private const val DETECTION_COOLDOWN_MS = 2000L // Minimum time between detections
         private const val FRAME_THROTTLE_MS = 200L // ~5 FPS (1000ms / 5 = 200ms)
+        private const val WATCHDOG_CHECK_INTERVAL_MS = 10000L // Check camera health every 10 seconds
+        private const val FRAME_TIMEOUT_MS = 15000L // Consider camera stuck if no frames for 15 seconds
+        private const val RESTART_DELAY_MS = 2000L // Wait 2 seconds before restarting
+        private const val MAX_RESTART_ATTEMPTS = 5 // Maximum restart attempts before giving up
     }
 }

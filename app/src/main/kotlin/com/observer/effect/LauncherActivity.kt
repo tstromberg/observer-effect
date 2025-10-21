@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import android.view.WindowManager
 
@@ -33,6 +34,16 @@ class LauncherActivity : Activity() {
         // This prevents hanging if target app never comes to foreground
         timeoutHandler.postDelayed(timeoutRunnable, FINISH_TIMEOUT_MS)
 
+        // Acquire a wake lock to ensure the screen turns on reliably
+        // This is more robust than just relying on window flags
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val wakeLock =
+            powerManager.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "ObserverEffect:LauncherWakeLock",
+            )
+        wakeLock.acquire(1 * 1000L /* 1 second */)
+
         val targetPackage = intent.getStringExtra(EXTRA_TARGET_PACKAGE)
         Log.i(TAG, "LauncherActivity started for package: $targetPackage (API ${Build.VERSION.SDK_INT})")
 
@@ -52,25 +63,36 @@ class LauncherActivity : Activity() {
             // Request keyguard dismissal
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             if (keyguardManager != null) {
-                keyguardManager.requestDismissKeyguard(
-                    this,
-                    object : KeyguardManager.KeyguardDismissCallback() {
-                        override fun onDismissSucceeded() {
-                            Log.i(TAG, "Keyguard dismissed successfully")
-                            launchTargetApp()
-                        }
+                // Check if keyguard is actually locked
+                val isKeyguardLocked = keyguardManager.isKeyguardLocked
+                Log.d(TAG, "Keyguard locked state: $isKeyguardLocked")
 
-                        override fun onDismissError() {
-                            Log.e(TAG, "Keyguard dismiss error")
-                            launchTargetApp()
-                        }
+                if (isKeyguardLocked) {
+                    // Only request dismissal if keyguard is actually shown
+                    keyguardManager.requestDismissKeyguard(
+                        this,
+                        object : KeyguardManager.KeyguardDismissCallback() {
+                            override fun onDismissSucceeded() {
+                                Log.i(TAG, "Keyguard dismissed successfully")
+                                launchTargetApp()
+                            }
 
-                        override fun onDismissCancelled() {
-                            Log.w(TAG, "Keyguard dismiss cancelled")
-                            finish()
-                        }
-                    },
-                )
+                            override fun onDismissError() {
+                                Log.e(TAG, "Keyguard dismiss error")
+                                launchTargetApp()
+                            }
+
+                            override fun onDismissCancelled() {
+                                Log.w(TAG, "Keyguard dismiss cancelled")
+                                finish()
+                            }
+                        },
+                    )
+                } else {
+                    // Keyguard not locked, launch app immediately
+                    Log.d(TAG, "Keyguard not locked, launching app immediately")
+                    launchTargetApp()
+                }
             } else {
                 Log.e(TAG, "KeyguardManager not available, launching app anyway")
                 launchTargetApp()

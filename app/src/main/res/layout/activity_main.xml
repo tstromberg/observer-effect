@@ -15,8 +15,8 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingTop="8dp"
-        android:paddingBottom="16dp">
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp">
 
         <!-- App Title with Whimsical Style -->
         <TextView
@@ -24,13 +24,13 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="@string/app_title"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="?attr/colorPrimary"
-            android:layout_marginStart="24dp"
-            android:layout_marginEnd="24dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="2dp"
             android:letterSpacing="0.05"
             android:gravity="center"
             android:fontFamily="monospace"
@@ -52,29 +52,12 @@
             android:text="@string/app_subtitle"
             android:textSize="11sp"
             android:textColor="?android:attr/textColorSecondary"
-            android:layout_marginStart="24dp"
-            android:layout_marginEnd="24dp"
-            android:layout_marginBottom="4dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="8dp"
             android:gravity="center"
             android:fontFamily="sans-serif"
             app:layout_constraintTop_toBottomOf="@id/appTitle"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <!-- Build Type Indicator -->
-        <TextView
-            android:id="@+id/buildTypeIndicator"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="9sp"
-            android:textColor="?android:attr/textColorTertiary"
-            android:layout_marginStart="24dp"
-            android:layout_marginEnd="24dp"
-            android:layout_marginBottom="24dp"
-            android:gravity="center"
-            android:fontFamily="monospace"
-            app:layout_constraintTop_toBottomOf="@id/appSubtitle"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -83,16 +66,16 @@
             android:id="@+id/motionCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="24dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="12dp"
-            app:cardElevation="4dp"
-            app:cardCornerRadius="20dp"
-            app:contentPadding="14dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginBottom="6dp"
+            app:cardElevation="3dp"
+            app:cardCornerRadius="16dp"
+            app:contentPadding="10dp"
             app:strokeWidth="0dp"
             app:cardBackgroundColor="@color/card_motion"
-            app:layout_constraintTop_toBottomOf="@id/buildTypeIndicator"
+            app:layout_constraintTop_toBottomOf="@id/appSubtitle"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintWidth_max="600dp">
@@ -107,12 +90,12 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/motion_detection"
-                    android:textSize="22sp"
+                    android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="?attr/colorPrimary"
                     android:fontFamily="sans-serif-medium"
                     android:letterSpacing="0.01"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="6dp" />
 
                 <!-- Camera Selection -->
                 <Spinner
@@ -120,7 +103,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="10dp"
                     android:contentDescription="@string/camera_selection" />
 
                 <!-- Camera Sensitivity (only shown when camera is selected) -->
@@ -132,7 +115,7 @@
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="6dp"
                     android:visibility="gone"
                     android:labelFor="@id/cameraSeekBar" />
 
@@ -186,13 +169,13 @@
             android:id="@+id/lightCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="12dp"
-            app:cardElevation="4dp"
-            app:cardCornerRadius="20dp"
-            app:contentPadding="14dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginBottom="6dp"
+            app:cardElevation="3dp"
+            app:cardCornerRadius="16dp"
+            app:contentPadding="10dp"
             app:strokeWidth="0dp"
             app:cardBackgroundColor="@color/card_light"
             app:layout_constraintTop_toBottomOf="@id/motionCard"
@@ -210,12 +193,12 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/light_detection"
-                    android:textSize="22sp"
+                    android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="?attr/colorPrimary"
                     android:fontFamily="sans-serif-medium"
                     android:letterSpacing="0.01"
-                    android:layout_marginBottom="24dp" />
+                    android:layout_marginBottom="12dp" />
 
                 <!-- Sensitivity Label -->
                 <TextView
@@ -225,7 +208,7 @@
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="6dp"
                     android:labelFor="@id/lightSeekBar" />
 
                 <LinearLayout
@@ -275,13 +258,13 @@
             android:id="@+id/settingsCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="16dp"
-            app:cardElevation="4dp"
-            app:cardCornerRadius="20dp"
-            app:contentPadding="14dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginBottom="8dp"
+            app:cardElevation="3dp"
+            app:cardCornerRadius="16dp"
+            app:contentPadding="10dp"
             app:strokeWidth="0dp"
             app:cardBackgroundColor="@color/card_settings"
             app:layout_constraintTop_toBottomOf="@id/lightCard"
@@ -300,10 +283,10 @@
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
                     android:text="@string/start_at_boot"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:textColor="?android:attr/textColorPrimary"
                     android:contentDescription="@string/start_at_boot"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="4dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -312,7 +295,7 @@
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="6dp"
                     android:labelFor="@id/launchAppSpinner" />
 
                 <Spinner
@@ -320,7 +303,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="4dp"
                     android:contentDescription="@string/launch_app" />
 
                 <CheckBox
@@ -329,10 +312,10 @@
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
                     android:text="@string/preload_app"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:textColor="?android:attr/textColorPrimary"
                     android:contentDescription="@string/preload_app"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="4dp" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -341,7 +324,7 @@
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="6dp"
                     android:labelFor="@id/notificationSoundSpinner" />
 
                 <Spinner

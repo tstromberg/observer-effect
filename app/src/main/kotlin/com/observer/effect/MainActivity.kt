@@ -93,10 +93,6 @@ class MainActivity : AppCompatActivity() {
         val notificationSound = prefs.getString(KEY_NOTIFICATION_SOUND, "") ?: ""
 
         with(binding) {
-            // Set build type indicator
-            val isDebug = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-            buildTypeIndicator?.text = if (isDebug) "[D]" else "[R]"
-
             // Setup camera spinner
             val cameraOptions =
                 arrayOf(
