@@ -71,7 +71,7 @@ The Observer Effect is optimized to run on a wide range of devices, from high-en
 - Camera frames throttled to ~5 FPS to reduce CPU usage by 80%
 - Automatic memory management - pauses detection during low memory conditions
 - Low resolution processing (320×240) for minimal resource usage
-- Efficient pixel sampling (10% of pixels, ~7,680 samples per frame)
+- Efficient pixel sampling (20% of pixels, ~15,360 samples per frame)
 
 **High-end device features:**
 - Optional app preload for instant appearance (100-300ms vs 2-5 seconds)
